@@ -212,3 +212,8 @@ To add new features, you might want to:
 ### Contributing
 
 Contributions are welcome! Please feel free to submit pull requests or open issues to improve the application.
+
+### If you would like to create a binary for easier use of the app use
+
+`pip install pyinstaller`
+`pyinstaller --onefile --windowed petcubehelper.py`
