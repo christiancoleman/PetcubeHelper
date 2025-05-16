@@ -24,10 +24,11 @@ A cat-friendly application that automates interactions with the PetCube app usin
 - **Fixed Points**: Moves between predefined locations
 
 ### Safety Features
-- **Safe Zone**: Restricts laser to bottom half of screen (0-50% height)
-  - Horizontal boundaries: 30-70% of screen width
+- **Customizable Safe Zone**: Restrict laser to any portion of the screen
+  - Adjustable boundaries using percentage values
+  - Horizontal range: Customizable left and right boundaries
+  - Vertical range: Customizable top and bottom boundaries
   - Visual overlay showing safe/restricted areas
-  - Toggle on/off if needed
 - **Continuous Movement**: Prevents laser from staying in one spot
   - Safety timer ensures movement at least every second
   - Prevents accidental eye contact with laser
@@ -38,6 +39,7 @@ A cat-friendly application that automates interactions with the PetCube app usin
   - Lower intensity = slower, more deliberate movements
 - **Custom Intervals**: Set time between pattern changes
 - **Visual Feedback**: Monitor movements with screenshots and logs
+- **Settings Persistence**: Save your safe zone settings for future sessions
 
 ## Prerequisites
 
@@ -76,6 +78,17 @@ python petcube_helper_gui.py
 4. **Verify Package**: Click "Verify Package" to find the PetCube app
 5. **Launch App**: Launch the PetCube application on the device
 
+### Customizing the Safe Zone
+
+1. **Adjust Percentages**: Set your desired boundaries using the percentage fields
+   - **Left %**: Left boundary (0% = left edge, 100% = right edge)
+   - **Right %**: Right boundary (must be greater than Left %)
+   - **Top %**: Top boundary (0% = top edge, 100% = bottom edge)
+   - **Bottom %**: Bottom boundary (must be greater than Top %)
+2. **Update Safe Zone**: Click "Update Safe Zone" to apply changes
+3. **Save Settings**: Click "Save Settings" to save for future sessions
+4. **View Results**: The screenshot will update to show your new safe zone
+
 ### Running Patterns
 
 1. **Select Pattern Type**: Choose from Kitty Mode, Laser Pointer, Random, Circular, or Fixed Points
@@ -106,25 +119,26 @@ Simulates a human-controlled laser pointer with:
 - **Circular**: Circular movement pattern around the center of the safe zone
 - **Fixed Points**: Moves between predefined points in the safe zone
 
-## Safety Zone
+## Understanding the Safe Zone
 
-The application creates a "safe zone" to avoid shining the laser in your cat's eyes:
+The application creates a customizable "safe zone" to avoid shining the laser in your cat's eyes:
 
-- **Vertical Restriction**: Uses only the bottom half of the screen (0-50% height)
-- **Horizontal Restriction**: Uses only the middle portion of the screen (30-70% width)
+- **Percentage-Based**: All boundaries are set as percentages of the screen dimensions
 - **Visual Feedback**: The screenshot tab shows:
   - Green border around the safe zone
   - Red overlay on restricted areas
+- **Orientation**: 
+  - 0% is the top/left edge of the screen
+  - 100% is the bottom/right edge of the screen
 
-The safe zone boundaries are automatically calculated based on your device's screen dimensions.
+For cat-friendly operation, it's usually best to:
+- Keep the laser in the lower portion of the screen (set Top % to 50-60)
+- Avoid extreme edges where the laser might not be visible
+- Adjust based on your specific PetCube camera setup and room layout
 
-## Continuous Movement Safety
+## Settings Persistence
 
-To prevent the laser from staying static and potentially causing eye damage:
-
-- All patterns ensure movement at least every second
-- Safety timer triggers movement if static for too long
-- Patterns include natural movement variations to maintain interest
+Your safe zone settings are automatically saved to `petcube_settings.json` when you click the "Save Settings" button. These settings will be loaded the next time you start the application.
 
 ## Troubleshooting
 
@@ -134,11 +148,15 @@ To prevent the laser from staying static and potentially causing eye damage:
   - The package name detection should help identify the correct package
   - Check if the app is installed on the device
 - **Pattern Issues**:
-  - If movements seem off-screen, try disabling the safe zone temporarily
+  - If movements seem off-screen, try adjusting your safe zone settings
   - Adjust the intensity slider to fine-tune the pattern speed
+- **Safe Zone Updates**: 
+  - Make sure your percentage values are valid (Left < Right, Top < Bottom)
+  - All percentages must be between 0 and 100
 
 ## For Developers
 
+- The safe zone logic is in `update_safe_zone()`, `calculate_safe_zone()`, and `get_safe_coordinates()`
+- Settings persistence is handled by `load_settings()` and `save_settings()`
 - The patterns are implemented in methods like `execute_kitty_mode_pattern()` and can be customized
-- The safe zone logic is in `get_safe_coordinates()` and `execute_tap()`
 - Movement safety is handled by `check_movement_safety()` and `update_movement_timer()`
