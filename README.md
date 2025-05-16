@@ -1,6 +1,6 @@
 # PetCube Helper
 
-A cat-friendly application that automates interactions with the PetCube app using ADB (Android Debug Bridge) to simulate laser pointer movement patterns at regular intervals.
+A cat-friendly application that automates interactions with the PetCube app using ADB (Android Debug Bridge) to simulate continuous laser pointer movement patterns for cat enrichment.
 
 ## Features
 
@@ -13,15 +13,14 @@ A cat-friendly application that automates interactions with the PetCube app usin
 - Displays device screenshots with safety zone overlay
 
 ### Cat-Optimized Patterns
+- **Continuous Movement System**: Keeps the laser moving constantly for optimal cat engagement
 - **Kitty Mode**: Simulates natural prey movements with multiple behavior types
   - Prey Movement: Small, erratic movements like a mouse
   - Stalking Prey: Slow movement followed by quick darts
   - Hiding Prey: Stop-and-go pattern with brief pauses
   - Fleeing Prey: Quick directional movements
 - **Laser Pointer**: Simulates human-controlled laser pointer with natural movements
-- **Random**: Creates unpredictable movement patterns
-- **Circular**: Draws circular patterns that trigger chase instincts
-- **Fixed Points**: Moves between predefined locations
+- **Pattern Variety**: System automatically alternates between patterns to maintain interest
 
 ### Safety Features
 - **Customizable Safe Zone**: Restrict laser to any portion of the screen
@@ -37,7 +36,7 @@ A cat-friendly application that automates interactions with the PetCube app usin
 - **Intensity Slider**: Adjust pattern speed and complexity
   - Higher intensity = faster movements, more variations
   - Lower intensity = slower, more deliberate movements
-- **Custom Intervals**: Set time between pattern changes
+- **Pattern Change Interval**: Control how often the pattern changes
 - **Visual Feedback**: Monitor movements with screenshots and logs
 - **Settings Persistence**: Save your safe zone settings for future sessions
 
@@ -97,12 +96,25 @@ python petcube_helper_gui.py
 
 ### Running Patterns
 
-1. **Select Pattern Type**: Choose from Kitty Mode, Laser Pointer, Random, Circular, or Fixed Points
-2. **Set Interval**: Enter the time in seconds between pattern changes
+1. **Select Primary Pattern**: Choose from Kitty Mode, Laser Pointer, Random, Circular, or Fixed Points
+2. **Set Pattern Change Interval**: Enter the time in seconds between pattern style changes
 3. **Adjust Intensity**: Use the slider to control speed and complexity
 4. **Enable Safe Zone**: Ensure the "Safe Zone" checkbox is selected (recommended)
-5. **Start Pattern**: Click "Start Pattern" to begin
-6. **Stop Pattern**: Click "Stop Pattern" when finished
+5. **Start Movement**: Click "Start Movement" to begin continuous laser movement
+6. **Stop Movement**: Click "Stop Movement" when finished
+
+## Continuous Movement System
+
+The application uses a continuous movement system to keep the laser in constant motion:
+
+- **No Pauses**: Unlike the original version, there are no waiting periods between patterns
+- **Pattern Changes**: The system will automatically switch between patterns at the specified interval
+- **Primary Pattern**: Your selected pattern will be used most of the time (70%)
+- **Pattern Variety**: For extra engagement, other patterns will occasionally be used (30%)
+- **Seamless Transitions**: Transitions between patterns are smooth and maintain constant movement
+- **Status Updates**: The status bar shows which pattern is currently running and when it will change
+
+This approach ensures the laser is always moving, which is better for your cat's safety and engagement.
 
 ## Application Architecture
 
@@ -134,7 +146,7 @@ Each module has a specific responsibility:
 ## Pattern Details
 
 ### Kitty Mode (Recommended)
-This mode intelligently alternates between different prey movement patterns to keep your cat engaged and trigger natural hunting instincts. The pattern types include:
+Alternates between different prey movement patterns to keep your cat engaged and trigger natural hunting instincts:
 
 - **Prey Movement**: Small, erratic movements like a mouse or bug
 - **Stalking Prey**: Slow movement followed by quick darts
@@ -160,6 +172,7 @@ The application creates a customizable "safe zone" to avoid shining the laser in
 - **Visual Feedback**: The screenshot tab shows:
   - Green border around the safe zone
   - Red overlay on restricted areas
+  - Text labels clearly marking "SAFE ZONE" and "EXCLUDED AREA"
 - **Orientation**: 
   - 0% is the top/left edge of the screen
   - 100% is the bottom/right edge of the screen

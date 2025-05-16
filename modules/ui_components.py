@@ -171,14 +171,14 @@ class PetCubeHelperUI:
         pattern_frame = ttk.LabelFrame(parent, text="Touch Pattern", padding="5")
         pattern_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        ttk.Label(pattern_frame, text="Pattern:").grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(pattern_frame, text="Primary Pattern:").grid(row=0, column=0, padx=5, pady=5)
         self.pattern_var = tk.StringVar(value="Kitty Mode")
         pattern_combo = ttk.Combobox(pattern_frame, textvariable=self.pattern_var, 
                                    values=["Kitty Mode", "Random", "Circular", "Laser Pointer", "Fixed Points"], 
                                    state="readonly", width=15)
         pattern_combo.grid(row=0, column=1, padx=5, pady=5)
         
-        ttk.Label(pattern_frame, text="Interval (sec):").grid(row=0, column=2, padx=5, pady=5)
+        ttk.Label(pattern_frame, text="Pattern Change (sec):").grid(row=0, column=2, padx=5, pady=5)
         self.interval_var = tk.StringVar(value="60")
         interval_entry = ttk.Entry(pattern_frame, textvariable=self.interval_var, width=5)
         interval_entry.grid(row=0, column=3, padx=5, pady=5)
@@ -196,15 +196,20 @@ class PetCubeHelperUI:
         safe_zone_check = ttk.Checkbutton(pattern_frame, text="Enabled", variable=self.safe_zone_var)
         safe_zone_check.grid(row=1, column=5, padx=5, pady=5)
         
-        self.start_pattern_button = ttk.Button(pattern_frame, text="Start Pattern", 
+        self.start_pattern_button = ttk.Button(pattern_frame, text="Start Movement", 
                                                command=self.callbacks.start_pattern, 
                                                state=tk.DISABLED)
         self.start_pattern_button.grid(row=0, column=4, padx=5, pady=5)
         
-        self.stop_pattern_button = ttk.Button(pattern_frame, text="Stop Pattern", 
+        self.stop_pattern_button = ttk.Button(pattern_frame, text="Stop Movement", 
                                               command=self.callbacks.stop_pattern, 
                                               state=tk.DISABLED)
         self.stop_pattern_button.grid(row=0, column=5, padx=5, pady=5)
+        
+        # Add help text about the new continuous movement system
+        help_text = "The laser will move continuously. 'Pattern Change' controls how often the movement style changes."
+        ttk.Label(pattern_frame, text=help_text, 
+                 font=("", 8, "italic")).grid(row=2, column=0, columnspan=6, padx=5, pady=2)
     
     def create_notebook(self, parent):
         """Create the notebook with tabs.

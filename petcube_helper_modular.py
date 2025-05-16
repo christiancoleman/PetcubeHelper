@@ -13,6 +13,7 @@ import queue
 import time
 import sys
 import os
+import random
 
 # Import modules
 from modules.adb_utils import ADBUtility
@@ -235,9 +236,9 @@ class PetCubeHelper:
         # Update UI buttons
         self.ui.enable_pattern_buttons(False, True)
         
-        # Start pattern thread
+        # Start pattern thread with continuous movement
         threading.Thread(
-            target=self.pattern_loop,
+            target=self.continuous_pattern_loop,
             args=(
                 pattern_settings['pattern'],
                 pattern_settings['interval'],
@@ -246,56 +247,78 @@ class PetCubeHelper:
             daemon=True
         ).start()
     
-    def pattern_loop(self, pattern_type, interval, intensity):
-        """Execute the pattern in a loop until stopped.
+    def continuous_pattern_loop(self, main_pattern, pattern_change_interval, intensity):
+        """Execute patterns in a continuous loop, changing patterns at intervals.
         
         Args:
-            pattern_type: The pattern type to execute
-            interval: Time between patterns in seconds
+            main_pattern: The primary pattern type selected by the user
+            pattern_change_interval: Time in seconds between pattern type changes
             intensity: Pattern intensity (0.1-1.0)
         """
-        self.log(f"Starting {pattern_type} with {interval}s interval and {intensity:.2f} intensity...")
-        self.ui.set_status(f"Running {pattern_type} pattern...")
+        self.log(f"Starting continuous movement with primary pattern: {main_pattern}")
+        self.log(f"Pattern will change every {pattern_change_interval} seconds")
+        self.log(f"Movement intensity: {intensity:.2f}")
+        
+        self.ui.set_status(f"Running {main_pattern} pattern")
         
         # Initialize movement timer
         self.pattern_executor.update_movement_timer()
         
+        # Available patterns for variety
+        all_patterns = ["Random", "Circular", "Laser Pointer", "Fixed Points", "Kitty Mode"]
+        
         # Loop until stop event is set
-        iteration = 1
+        next_pattern_change = time.time() + pattern_change_interval
+        current_pattern = main_pattern
+        running_time = 0
+        
         while not self.stop_event.is_set():
-            self.log(f"Executing iteration {iteration}...")
-            
-            # Execute pattern
-            self.pattern_executor.execute_pattern(pattern_type, intensity)
-            
-            # Calculate wait time based on interval and intensity
-            # Higher intensity = shorter intervals between patterns
-            adjusted_interval = max(5, int(interval * (1.1 - intensity)))
-            
-            # Wait for the next interval or until stopped, checking safety timer
-            self.log(f"Waiting {adjusted_interval} seconds for next iteration...")
-            
-            wait_start = time.time()
-            while (time.time() - wait_start) < adjusted_interval:
-                if self.stop_event.is_set():
-                    break
-                    
-                # Check if we need to move for safety (no more than 1 second static)
-                if self.pattern_executor.check_movement_safety():
-                    # Make a small safe movement
-                    self.pattern_executor.make_safety_movement(intensity)
-                    # Reset wait timer for next pattern
-                    wait_start = time.time()
+            # Time to change patterns?
+            current_time = time.time()
+            if current_time >= next_pattern_change:
+                # Decide on next pattern (usually the main pattern, sometimes a random one)
+                if random.random() < 0.7:  # 70% chance to use main pattern
+                    current_pattern = main_pattern
+                else:
+                    # Choose a different pattern for variety
+                    other_patterns = [p for p in all_patterns if p != current_pattern]
+                    current_pattern = random.choice(other_patterns)
                 
-                # Update status
-                remaining = adjusted_interval - int(time.time() - wait_start)
-                if remaining > 0:
-                    self.ui.set_status(f"Running {pattern_type} pattern. Next in {remaining}s")
+                self.log(f"Changing to {current_pattern} pattern")
+                next_pattern_change = current_time + pattern_change_interval
                 
-                # Short sleep to keep UI responsive
-                time.sleep(0.2)
+                # Show pattern change in UI
+                self.ui.set_status(f"Running {current_pattern} pattern (changes in {pattern_change_interval}s)")
+            
+            # Calculate sub-pattern length based on intensity
+            # Higher intensity = shorter, more varied patterns
+            sub_pattern_duration = max(3, 10 * (1.0 - intensity))
+            
+            # Execute current pattern for a short duration
+            self.log(f"Executing {current_pattern} movement sequence")
+            self.pattern_executor.execute_pattern(current_pattern, intensity)
+            
+            # Update status with countdown to next pattern change
+            seconds_to_next = max(1, int(next_pattern_change - time.time()))
+            self.ui.set_status(f"Running {current_pattern} pattern (changes in {seconds_to_next}s)")
+            
+            # Very short gap between sub-patterns - just enough for the app to process
+            # but short enough that the laser movement appears continuous
+            if not self.stop_event.is_set():
+                time.sleep(0.1)
+            
+            running_time += 1
+            
+            # Periodically take screenshots to show activity (every 30 seconds)
+            if running_time % 30 == 0 and not self.stop_event.is_set():
+                ss_filename = f"movement_{running_time}s.png"
+                self.adb_utility.get_screenshot(ss_filename)
                 
-            iteration += 1
+                if hasattr(self, 'screen_width') and hasattr(self, 'screen_height'):
+                    safe_zone = self.config_manager.calculate_safe_zone_pixels(
+                        self.screen_width, self.screen_height
+                    )
+                    self.ui.update_screenshot(ss_filename, self.screen_width, self.screen_height, safe_zone)
     
     def stop_pattern(self):
         """Stop the running pattern"""
