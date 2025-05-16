@@ -1,91 +1,103 @@
 # PetCube Helper
 
-This script automates interactions with the PetCube app using ADB (Android Debug Bridge) to simulate user interactions at regular intervals.
+This application automates interactions with the PetCube app using ADB (Android Debug Bridge) to simulate user interactions at regular intervals.
 
 ## Features
 
+- Easy-to-use graphical user interface
 - Automatically starts the ADB server if not running
-- Finds the best available device (preferring local/USB connections over network)
+- Finds and displays all connected devices (local and network)
 - Dynamically verifies and uses the correct PetCube package name
 - Launches the PetCube app
-- Takes screenshots to help determine navigation coordinates
-- Provides framework for camera navigation and touch pattern automation
+- Displays device screenshots directly in the application
+- Multiple touch pattern options: Random, Circular, and Fixed Points
+- Configurable time intervals for pattern repetition
+
+## Application Versions
+
+- **CLI Version**: `petcube_helper.py` - Command-line interface script
+- **GUI Version**: `petcube_helper_gui.py` - Graphical user interface application
 
 ## Prerequisites
 
 - Python 3.6+ installed
 - ADB (Android Debug Bridge) installed and available in your PATH
-  - Usually part of Android SDK Platform Tools
-  - Can be downloaded from Android developer website
+- Required Python packages:
+  - PIL/Pillow (for the GUI version)
+  - tkinter (usually comes with Python)
 - A device running the PetCube app with USB debugging enabled
-- For emulators, ensure they're configured correctly and running
 
 ## Installation
 
 1. Clone or download this repository to your local machine
 2. Ensure Python 3.6+ is installed
-3. Ensure ADB is installed and in your system PATH
-4. Connect your Android device or start your emulator
+3. Install required packages:
+   ```
+   pip install pillow
+   ```
+4. Ensure ADB is installed and in your system PATH
 
 ## Usage
 
-Run the script:
+### GUI Version (Recommended)
+
+Run the GUI application:
+
+```
+python petcube_helper_gui.py
+```
+
+The GUI application provides an intuitive interface with:
+- Buttons for each major function
+- Real-time logging in a scrollable view
+- Device screenshot display
+- Touch pattern selection and configuration
+- Status updates at the bottom of the window
+
+### CLI Version
+
+Run the command-line script:
 
 ```
 python petcube_helper.py
 ```
 
-### What the Script Does
+## Using the GUI Application
 
-1. **Startup Phase**
-   - Verifies ADB is available in PATH and starts the ADB server if needed
-   - Detects all connected Android devices
-   - Intelligently selects the best device (local devices preferred over network)
-   - Verifies the correct Petcube package name by searching installed packages
+1. **Start ADB Server**: Click the "Start ADB Server" button to initialize ADB
+2. **Find Devices**: Click "Find Devices" to detect connected Android devices
+3. **Select a Device**: Choose a device from the dropdown list
+4. **Verify Package**: Click "Verify Package" to find the PetCube app
+5. **Launch App**: Launch the PetCube application on the device
+6. **Configure Pattern**:
+   - Select a touch pattern type (Random, Circular, Fixed Points)
+   - Set the interval in seconds between pattern repetitions
+7. **Start/Stop**: Click "Start Pattern" to begin and "Stop Pattern" to end the automation
 
-2. **App Interaction Phase**
-   - Launches the Petcube app using the verified package name
-   - Takes screenshots to help with navigation coordinate determination
-   - Provides framework for implementing camera navigation and touch patterns
+### Touch Pattern Types
 
-## Device Selection Logic
+1. **Random**: Performs 3-7 random taps across the screen
+2. **Circular**: Draws a circular pattern of taps around the center of the screen
+3. **Fixed Points**: Taps a predefined set of screen coordinates (customizable in the code)
 
-The script uses a smart device selection algorithm:
-- Local/USB devices are preferred over network devices
-- If multiple devices are connected, the first local device is selected
-- If only network devices are available, the first one is selected
-- Detailed device information is displayed to help with troubleshooting
+## Screenshots
 
-## Package Verification
-
-The script dynamically verifies the Petcube app package:
-- Searches for all packages containing "petcube" in the name
-- Uses the default package name if found
-- Automatically selects and uses alternatives if the default isn't found
-- Provides clear feedback about which package is being used
+The application automatically captures and displays screenshots from the device after each major operation, helping you visualize the current state of the app.
 
 ## Customization
 
-### Navigation Coordinates
+### Fixed Pattern Coordinates
 
-You'll need to modify the `navigate_to_camera()` function with the correct coordinates for your specific device and app version. The script takes a screenshot to help determine these coordinates.
+To customize the Fixed Points pattern, edit the `execute_fixed_pattern()` method in the GUI script:
 
-To test tap locations manually:
+```python
+fixed_points = [
+    (200, 500),  # Customize X,Y coordinates
+    (500, 800),  # for your specific device
+    (800, 500),  # and app layout
+    (500, 300),
+]
 ```
-adb shell input tap X Y
-```
-
-To get the coordinates of a tap on some devices:
-```
-adb shell getevent -l
-```
-
-### Adding Touch Patterns
-
-Once navigation is working, the script will be extended to implement:
-- Different touch patterns (circular, random, fixed points)
-- Configurable time intervals between interactions
-- Loop control for repeated interactions
 
 ## Troubleshooting
 
@@ -95,17 +107,14 @@ Once navigation is working, the script will be extended to implement:
 - **App Launch Failures**: 
   - The package name detection should help identify the correct package
   - Check if the app is installed on the device
-  - Verify the app's permissions
-- **Navigation Issues**: 
-  - Review the app_home.png screenshot to determine correct coordinates
-  - Different device resolutions require different coordinates
+- **GUI Issues**:
+  - If the screenshots don't display, ensure Pillow is installed correctly
+  - If the GUI doesn't start, ensure tkinter is available with your Python installation
 
-## Development Roadmap
+## Development
 
-1. Basic connection and app launching ✅
-2. Package verification and smart device selection ✅
-3. Camera navigation (in progress)
-4. Touch pattern implementation
-5. Interval timing and looping
-6. Configuration options and command-line arguments
-7. Error recovery mechanisms
+This project uses:
+- Tkinter for the GUI
+- Threading for non-blocking operations
+- PIL/Pillow for image handling
+- Subprocess for ADB command execution
