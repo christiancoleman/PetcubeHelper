@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import time
+import sys
 
 class ADBUtility:
 	def __init__(self, logger=None):
@@ -21,6 +22,12 @@ class ADBUtility:
 		self.selected_device = None
 		self.screen_width = 1080  # Default
 		self.screen_height = 1920  # Default
+		
+		# Setup subprocess flags to hide console windows on Windows
+		self.subprocess_flags = {}
+		if sys.platform.startswith('win'):
+			self.subprocess_flags['creationflags'] = 0x08000000  # CREATE_NO_WINDOW flag
+			self.log("Configured for Windows - hiding command windows")
 	
 	def log(self, message):
 		"""Log a message using the provided logger function."""
@@ -36,14 +43,14 @@ class ADBUtility:
 		
 		# Check if ADB is in PATH
 		try:
-			result = subprocess.run(["adb", "--version"], capture_output=True, text=True)
+			result = subprocess.run(["adb", "--version"], capture_output=True, text=True, **self.subprocess_flags)
 			self.log(result.stdout.split('\n')[0])  # Log ADB version
 		except (subprocess.SubprocessError, FileNotFoundError):
 			self.log("Error: ADB not found in PATH. Please install Android SDK Platform Tools.")
 			return False
 		
 		# Start ADB server if it's not running
-		result = subprocess.run(["adb", "start-server"], capture_output=True, text=True)
+		result = subprocess.run(["adb", "start-server"], capture_output=True, text=True, **self.subprocess_flags)
 		self.log("ADB server started")
 		return True
 	
@@ -56,7 +63,7 @@ class ADBUtility:
 		"""
 		self.log("Looking for connected Android devices...")
 		
-		result = subprocess.run(["adb", "devices", "-l"], capture_output=True, text=True)
+		result = subprocess.run(["adb", "devices", "-l"], capture_output=True, text=True, **self.subprocess_flags)
 		self.log(result.stdout)
 		
 		# Parse the output to get device list
@@ -98,9 +105,9 @@ class ADBUtility:
 		
 		# Set the device as active
 		if ":" in self.selected_device:  # Network device
-			subprocess.run(["adb", "connect", self.selected_device], capture_output=True)
+			subprocess.run(["adb", "connect", self.selected_device], capture_output=True, **self.subprocess_flags)
 		
-		subprocess.run(["adb", "-s", self.selected_device, "wait-for-device"], capture_output=True)
+		subprocess.run(["adb", "-s", self.selected_device, "wait-for-device"], capture_output=True, **self.subprocess_flags)
 		return True
 	
 	def verify_package(self, package_name, search_term="petcube"):
@@ -123,7 +130,8 @@ class ADBUtility:
 		result = subprocess.run(
 			["adb", "-s", self.selected_device, "shell", "pm", "list", "packages", search_term],
 			capture_output=True,
-			text=True
+			text=True,
+			**self.subprocess_flags
 		)
 		
 		packages = []
@@ -169,7 +177,8 @@ class ADBUtility:
 		result = subprocess.run(
 			["adb", "-s", self.selected_device, "shell", "monkey", "-p", package_name, "1"],
 			capture_output=True,
-			text=True
+			text=True,
+			**self.subprocess_flags
 		)
 		
 		# Check if app launch was successful
@@ -195,7 +204,8 @@ class ADBUtility:
 		result = subprocess.run(
 			["adb", "-s", self.selected_device, "shell", "wm", "size"],
 			capture_output=True,
-			text=True
+			text=True,
+			**self.subprocess_flags
 		)
 		
 		# Parse dimensions (example output: "Physical size: 1080x2340")
@@ -227,11 +237,11 @@ class ADBUtility:
 		
 		try:
 			subprocess.run(["adb", "-s", self.selected_device, "shell", "screencap", "/sdcard/screen.png"], 
-						   capture_output=True, check=True)
+					capture_output=True, check=True, **self.subprocess_flags)
 			subprocess.run(["adb", "-s", self.selected_device, "pull", "/sdcard/screen.png", filename], 
-						   capture_output=True, check=True)
+					capture_output=True, check=True, **self.subprocess_flags)
 			subprocess.run(["adb", "-s", self.selected_device, "shell", "rm", "/sdcard/screen.png"], 
-						   capture_output=True)
+					capture_output=True, **self.subprocess_flags)
 			
 			self.log(f"Screenshot saved to {filename}")
 			return True
@@ -256,7 +266,8 @@ class ADBUtility:
 		try:
 			subprocess.run(
 				["adb", "-s", self.selected_device, "shell", "input", "tap", str(x), str(y)],
-				capture_output=True
+				capture_output=True,
+				**self.subprocess_flags
 			)
 			return True
 		except subprocess.SubprocessError as e:
