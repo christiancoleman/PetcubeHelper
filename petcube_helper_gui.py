@@ -5,16 +5,19 @@ import re
 import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 import threading
 import queue
+import random
+import math
+import json
 
 class PetCubeHelperGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("PetCube Helper")
-        self.root.geometry("800x600")
-        self.root.minsize(800, 600)
+        self.root.geometry("900x700")
+        self.root.minsize(900, 700)
         
         # Default package name for Petcube
         self.PETCUBE_PACKAGE = "com.petcube.android"
@@ -26,6 +29,32 @@ class PetCubeHelperGUI:
         self.selected_device = None
         self.verified_package = None
         
+        # Screen dimensions and safe zone
+        self.screen_width = 1080  # Default
+        self.screen_height = 1920  # Default
+        
+        # Default safe zone percentages
+        self.safe_zone_pct = {
+            'min_x': 0.3,   # 30% from left
+            'max_x': 0.7,   # 70% from left
+            'min_y': 0.5,   # 50% from top (bottom half of screen)
+            'max_y': 0.9,   # 90% from top
+        }
+        
+        # Safe zone boundaries in pixels (will be calculated based on screen dimensions)
+        self.safe_zone = {
+            'min_x': 0,
+            'max_x': 1080,
+            'min_y': 0,
+            'max_y': 960,
+        }
+        
+        # Movement safety timer
+        self.last_movement_time = time.time()
+        
+        # Load saved settings if they exist
+        self.load_settings()
+        
         # Create UI elements
         self.create_ui()
         
@@ -34,6 +63,34 @@ class PetCubeHelperGUI:
         
         # Set up thread event for stopping operations
         self.stop_event = threading.Event()
+
+    def load_settings(self):
+        """Load saved settings from file."""
+        try:
+            if os.path.exists('petcube_settings.json'):
+                with open('petcube_settings.json', 'r') as f:
+                    settings = json.load(f)
+                    
+                    # Load safe zone percentages if available
+                    if 'safe_zone_pct' in settings:
+                        self.safe_zone_pct = settings['safe_zone_pct']
+                        self.log(f"Loaded saved safe zone settings: {self.safe_zone_pct}")
+        except Exception as e:
+            print(f"Error loading settings: {str(e)}")
+    
+    def save_settings(self):
+        """Save current settings to file."""
+        try:
+            settings = {
+                'safe_zone_pct': self.safe_zone_pct,
+            }
+            
+            with open('petcube_settings.json', 'w') as f:
+                json.dump(settings, f)
+                
+            self.log("Settings saved successfully")
+        except Exception as e:
+            self.log(f"Error saving settings: {str(e)}")
 
     def create_ui(self):
         """Create the user interface elements"""
@@ -64,20 +121,79 @@ class PetCubeHelperGUI:
         self.launch_button = ttk.Button(control_panel, text="Launch App", command=self.launch_app_thread, state=tk.DISABLED)
         self.launch_button.grid(row=1, column=1, padx=5, pady=5)
         
+        # Safe Zone Configuration
+        safe_zone_frame = ttk.LabelFrame(main_frame, text="Safe Zone Configuration", padding="5")
+        safe_zone_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # X range (horizontal)
+        ttk.Label(safe_zone_frame, text="Horizontal Range:").grid(row=0, column=0, padx=5, pady=5)
+        
+        # Min X (left boundary)
+        ttk.Label(safe_zone_frame, text="Left %:").grid(row=0, column=1, padx=5, pady=5)
+        self.min_x_var = tk.StringVar(value=str(int(self.safe_zone_pct['min_x'] * 100)))
+        min_x_entry = ttk.Entry(safe_zone_frame, textvariable=self.min_x_var, width=5)
+        min_x_entry.grid(row=0, column=2, padx=5, pady=5)
+        
+        # Max X (right boundary)
+        ttk.Label(safe_zone_frame, text="Right %:").grid(row=0, column=3, padx=5, pady=5)
+        self.max_x_var = tk.StringVar(value=str(int(self.safe_zone_pct['max_x'] * 100)))
+        max_x_entry = ttk.Entry(safe_zone_frame, textvariable=self.max_x_var, width=5)
+        max_x_entry.grid(row=0, column=4, padx=5, pady=5)
+        
+        # Y range (vertical)
+        ttk.Label(safe_zone_frame, text="Vertical Range:").grid(row=1, column=0, padx=5, pady=5)
+        
+        # Min Y (top boundary)
+        ttk.Label(safe_zone_frame, text="Top %:").grid(row=1, column=1, padx=5, pady=5)
+        self.min_y_var = tk.StringVar(value=str(int(self.safe_zone_pct['min_y'] * 100)))
+        min_y_entry = ttk.Entry(safe_zone_frame, textvariable=self.min_y_var, width=5)
+        min_y_entry.grid(row=1, column=2, padx=5, pady=5)
+        
+        # Max Y (bottom boundary)
+        ttk.Label(safe_zone_frame, text="Bottom %:").grid(row=1, column=3, padx=5, pady=5)
+        self.max_y_var = tk.StringVar(value=str(int(self.safe_zone_pct['max_y'] * 100)))
+        max_y_entry = ttk.Entry(safe_zone_frame, textvariable=self.max_y_var, width=5)
+        max_y_entry.grid(row=1, column=4, padx=5, pady=5)
+        
+        # Update and Save buttons
+        self.update_zone_button = ttk.Button(safe_zone_frame, text="Update Safe Zone", command=self.update_safe_zone)
+        self.update_zone_button.grid(row=0, column=5, rowspan=2, padx=10, pady=5)
+        
+        self.save_settings_button = ttk.Button(safe_zone_frame, text="Save Settings", command=self.save_settings)
+        self.save_settings_button.grid(row=0, column=6, rowspan=2, padx=10, pady=5)
+        
+        # Description label
+        ttk.Label(safe_zone_frame, text="Note: 0% is left/top of screen, 100% is right/bottom", 
+                  font=("", 8, "italic")).grid(row=2, column=0, columnspan=7, padx=5, pady=2)
+        
         # Touch pattern controls
         pattern_frame = ttk.LabelFrame(main_frame, text="Touch Pattern", padding="5")
         pattern_frame.pack(fill=tk.X, padx=5, pady=5)
         
         ttk.Label(pattern_frame, text="Pattern:").grid(row=0, column=0, padx=5, pady=5)
-        self.pattern_var = tk.StringVar(value="Random")
+        self.pattern_var = tk.StringVar(value="Kitty Mode")
         pattern_combo = ttk.Combobox(pattern_frame, textvariable=self.pattern_var, 
-                                   values=["Random", "Circular", "Fixed Points"], state="readonly", width=15)
+                                   values=["Kitty Mode", "Random", "Circular", "Laser Pointer", "Fixed Points"], 
+                                   state="readonly", width=15)
         pattern_combo.grid(row=0, column=1, padx=5, pady=5)
         
         ttk.Label(pattern_frame, text="Interval (sec):").grid(row=0, column=2, padx=5, pady=5)
         self.interval_var = tk.StringVar(value="60")
         interval_entry = ttk.Entry(pattern_frame, textvariable=self.interval_var, width=5)
         interval_entry.grid(row=0, column=3, padx=5, pady=5)
+        
+        # Pattern Intensity Slider
+        ttk.Label(pattern_frame, text="Intensity:").grid(row=1, column=0, padx=5, pady=5)
+        self.intensity_var = tk.DoubleVar(value=0.5)  # 0.0 to 1.0
+        intensity_slider = ttk.Scale(pattern_frame, from_=0.1, to=1.0, orient="horizontal",
+                                    variable=self.intensity_var, length=200)
+        intensity_slider.grid(row=1, column=1, columnspan=3, padx=5, pady=5)
+        
+        # Safe Zone Controls
+        ttk.Label(pattern_frame, text="Safe Zone:").grid(row=1, column=4, padx=5, pady=5)
+        self.safe_zone_var = tk.BooleanVar(value=True)
+        safe_zone_check = ttk.Checkbutton(pattern_frame, text="Enabled", variable=self.safe_zone_var)
+        safe_zone_check.grid(row=1, column=5, padx=5, pady=5)
         
         self.start_pattern_button = ttk.Button(pattern_frame, text="Start Pattern", command=self.start_pattern_thread, state=tk.DISABLED)
         self.start_pattern_button.grid(row=0, column=4, padx=5, pady=5)
@@ -109,6 +225,55 @@ class PetCubeHelperGUI:
         self.status_var = tk.StringVar(value="Ready.")
         status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_bar.pack(fill=tk.X, padx=5, pady=2)
+
+    def update_safe_zone(self):
+        """Update the safe zone based on user input."""
+        try:
+            # Get values from entry fields
+            min_x_pct = float(self.min_x_var.get()) / 100
+            max_x_pct = float(self.max_x_var.get()) / 100
+            min_y_pct = float(self.min_y_var.get()) / 100
+            max_y_pct = float(self.max_y_var.get()) / 100
+            
+            # Validate ranges
+            if min_x_pct >= max_x_pct:
+                raise ValueError("Left % must be less than Right %")
+            if min_y_pct >= max_y_pct:
+                raise ValueError("Top % must be less than Bottom %")
+            if min_x_pct < 0 or max_x_pct > 1 or min_y_pct < 0 or max_y_pct > 1:
+                raise ValueError("Percentages must be between 0 and 100")
+            
+            # Update safe zone percentages
+            self.safe_zone_pct = {
+                'min_x': min_x_pct,
+                'max_x': max_x_pct,
+                'min_y': min_y_pct,
+                'max_y': max_y_pct,
+            }
+            
+            # Recalculate safe zone pixels based on screen dimensions
+            self.calculate_safe_zone()
+            
+            # Take a new screenshot to update the display
+            if self.selected_device:
+                self.get_screenshot("safe_zone_update.png")
+                
+            self.log(f"Safe zone updated: X={self.safe_zone_pct['min_x']:.2f}-{self.safe_zone_pct['max_x']:.2f}, Y={self.safe_zone_pct['min_y']:.2f}-{self.safe_zone_pct['max_y']:.2f}")
+            
+        except ValueError as e:
+            messagebox.showerror("Invalid Input", str(e))
+            self.log(f"Safe zone update error: {str(e)}")
+
+    def calculate_safe_zone(self):
+        """Calculate safe zone in pixels based on screen dimensions and percentages."""
+        self.safe_zone = {
+            'min_x': int(self.screen_width * self.safe_zone_pct['min_x']),
+            'max_x': int(self.screen_width * self.safe_zone_pct['max_x']),
+            'min_y': int(self.screen_height * self.safe_zone_pct['min_y']),
+            'max_y': int(self.screen_height * self.safe_zone_pct['max_y']),
+        }
+        
+        self.log(f"Safe zone calculated in pixels: X={self.safe_zone['min_x']}-{self.safe_zone['max_x']}, Y={self.safe_zone['min_y']}-{self.safe_zone['max_y']}")
 
     def log(self, message):
         """Add a message to the log queue"""
@@ -143,6 +308,37 @@ class PetCubeHelperGUI:
                 # Open the image with PIL
                 img = Image.open(filename)
                 
+                # Draw safe zone overlay on a copy of the image
+                img_with_overlay = img.copy()
+                draw = ImageDraw.Draw(img_with_overlay)
+                
+                # Calculate safe zone coordinates for this image
+                img_width, img_height = img.size
+                zone_min_x = int(img_width * self.safe_zone['min_x'] / self.screen_width)
+                zone_max_x = int(img_width * self.safe_zone['max_x'] / self.screen_width)
+                zone_min_y = int(img_height * self.safe_zone['min_y'] / self.screen_height)
+                zone_max_y = int(img_height * self.safe_zone['max_y'] / self.screen_height)
+                
+                # Draw semi-transparent red overlay on excluded areas
+                excluded_zones = [
+                    # Top zone (0 to zone_min_y)
+                    [(0, 0), (img_width, zone_min_y)],
+                    # Bottom zone (zone_max_y to img_height)
+                    [(0, zone_max_y), (img_width, img_height)],
+                    # Left zone (0 to zone_min_x)
+                    [(0, zone_min_y), (zone_min_x, zone_max_y)],
+                    # Right zone (zone_max_x to img_width)
+                    [(zone_max_x, zone_min_y), (img_width, zone_max_y)]
+                ]
+                
+                overlay_color = (255, 0, 0, 64)  # Semi-transparent red
+                for zone in excluded_zones:
+                    draw.rectangle(zone, fill=overlay_color)
+                
+                # Draw a green border around the safe zone
+                draw.rectangle([(zone_min_x, zone_min_y), (zone_max_x, zone_max_y)], 
+                              outline=(0, 255, 0), width=3)
+                
                 # Resize to fit canvas while maintaining aspect ratio
                 canvas_width = self.screenshot_canvas.winfo_width()
                 canvas_height = self.screenshot_canvas.winfo_height()
@@ -152,15 +348,14 @@ class PetCubeHelperGUI:
                     canvas_width = 600
                     canvas_height = 400
                 
-                img_width, img_height = img.size
                 ratio = min(canvas_width/img_width, canvas_height/img_height)
                 new_width = int(img_width * ratio)
                 new_height = int(img_height * ratio)
                 
-                img = img.resize((new_width, new_height), Image.LANCZOS)
+                img_with_overlay = img_with_overlay.resize((new_width, new_height), Image.LANCZOS)
                 
                 # Convert to Tkinter PhotoImage
-                self.photo = ImageTk.PhotoImage(img)
+                self.photo = ImageTk.PhotoImage(img_with_overlay)
                 
                 # Calculate position to center the image
                 x = (canvas_width - new_width) // 2
@@ -169,12 +364,35 @@ class PetCubeHelperGUI:
                 # Add image to canvas
                 self.screenshot_canvas.create_image(x, y, anchor=tk.NW, image=self.photo)
                 
-                self.log(f"Updated screenshot from {filename}")
+                self.log(f"Updated screenshot from {filename} with safe zone overlay")
             except Exception as e:
                 self.log(f"Error displaying screenshot: {str(e)}")
         else:
             self.log(f"Screenshot file not found: {filename}")
     
+    def check_movement_safety(self):
+        """Check if we need to force movement for safety"""
+        current_time = time.time()
+        time_since_last_movement = current_time - self.last_movement_time
+        
+        # If more than 1 second has passed without movement, we need to move
+        if time_since_last_movement > 1.0:
+            self.log("Safety timer triggered - forcing movement")
+            return True
+        return False
+    
+    def update_movement_timer(self):
+        """Update the last movement timestamp"""
+        self.last_movement_time = time.time()
+    
+    def get_safe_coordinates(self):
+        """Get a random point within the safe zone"""
+        # Generate random coordinates within safe zone
+        x = random.randint(self.safe_zone['min_x'], self.safe_zone['max_x'])
+        y = random.randint(self.safe_zone['min_y'], self.safe_zone['max_y'])
+        
+        return x, y
+        
     # Thread wrappers for long operations
     def start_adb_thread(self):
         threading.Thread(target=self.ensure_adb_running, daemon=True).start()
@@ -374,6 +592,9 @@ class PetCubeHelperGUI:
         # Wait for app UI to stabilize
         time.sleep(2)
         
+        # Get screen dimensions for safe zone calculation
+        self.get_screen_dimensions()
+        
         # Take a screenshot
         success = self.get_screenshot("app_home.png")
         if success:
@@ -381,6 +602,31 @@ class PetCubeHelperGUI:
             
             # Enable pattern controls
             self.start_pattern_button.config(state=tk.NORMAL)
+    
+    def get_screen_dimensions(self):
+        """Get device screen dimensions and calculate safe zone."""
+        if not self.selected_device:
+            return
+            
+        result = subprocess.run(
+            ["adb", "-s", self.selected_device, "shell", "wm", "size"],
+            capture_output=True,
+            text=True
+        )
+        
+        # Parse dimensions (example output: "Physical size: 1080x2340")
+        size_match = re.search(r'(\d+)x(\d+)', result.stdout)
+        if size_match:
+            self.screen_width = int(size_match.group(1))
+            self.screen_height = int(size_match.group(2))
+            
+            # Calculate safe zone bounds based on percentages
+            self.calculate_safe_zone()
+            
+            self.log(f"Screen dimensions: {self.screen_width}x{self.screen_height}")
+            self.log(f"Safe zone: X={self.safe_zone['min_x']}-{self.safe_zone['max_x']}, Y={self.safe_zone['min_y']}-{self.safe_zone['max_y']}")
+        else:
+            self.log("Could not determine screen dimensions. Using defaults.")
     
     def execute_touch_pattern(self):
         """Execute the selected touch pattern in a loop."""
@@ -398,6 +644,13 @@ class PetCubeHelperGUI:
         self.start_pattern_button.config(state=tk.DISABLED)
         self.stop_pattern_button.config(state=tk.NORMAL)
         
+        # Get intensity value
+        intensity = self.intensity_var.get()  # Between 0.1 and 1.0
+        self.log(f"Pattern intensity: {intensity:.2f}")
+        
+        # Initialize movement timer
+        self.update_movement_timer()
+        
         # Loop until stop event is set
         iteration = 1
         while not self.stop_event.is_set():
@@ -405,136 +658,351 @@ class PetCubeHelperGUI:
             
             # Execute pattern based on type
             if pattern_type == "Random":
-                self.execute_random_pattern()
+                self.execute_random_pattern(intensity)
             elif pattern_type == "Circular":
-                self.execute_circular_pattern()
+                self.execute_circular_pattern(intensity)
+            elif pattern_type == "Laser Pointer":
+                self.execute_laser_pointer_pattern(intensity)
             elif pattern_type == "Fixed Points":
-                self.execute_fixed_pattern()
+                self.execute_fixed_pattern(intensity)
+            elif pattern_type == "Kitty Mode":
+                self.execute_kitty_mode_pattern(intensity)
             
-            # Take a screenshot to show result
-            self.get_screenshot(f"pattern_iteration_{iteration}.png")
+            # Take a screenshot to show result if needed
+            # Disabled to save device resources during continuous operation
+            # self.get_screenshot(f"pattern_iteration_{iteration}.png")
             
-            # Wait for the next interval or until stopped
-            self.log(f"Waiting {interval} seconds for next iteration...")
+            # Calculate wait time based on interval and intensity
+            # Higher intensity = shorter intervals between patterns
+            adjusted_interval = max(5, int(interval * (1.1 - intensity)))
             
-            for i in range(interval):
+            # Wait for the next interval or until stopped, checking safety timer
+            self.log(f"Waiting {adjusted_interval} seconds for next iteration...")
+            
+            wait_start = time.time()
+            while (time.time() - wait_start) < adjusted_interval:
                 if self.stop_event.is_set():
                     break
-                self.set_status(f"Running {pattern_type} pattern. Next in {interval - i}s")
-                time.sleep(1)
+                    
+                # Check if we need to move for safety (no more than 1 second static)
+                if self.check_movement_safety():
+                    # Make a small safe movement
+                    self.make_safety_movement(intensity)
+                    # Reset wait timer for next pattern
+                    wait_start = time.time()
+                
+                self.set_status(f"Running {pattern_type} pattern. Next in {adjusted_interval - int(time.time() - wait_start)}s")
+                time.sleep(0.2)  # Short sleep to keep UI responsive
                 
             iteration += 1
     
-    def execute_random_pattern(self):
-        """Execute a random touch pattern."""
-        import random
+    def make_safety_movement(self, intensity):
+        """Make a small, safe movement to prevent static pointing."""
+        self.log("Making safety movement")
         
+        # Get current coordinates
+        x, y = self.get_safe_coordinates()
+        
+        # Make a small tap
+        self.execute_tap(x, y)
+        
+        # Update the movement timer
+        self.update_movement_timer()
+    
+    def execute_tap(self, x, y, log_message=None):
+        """Execute a tap with safe zone enforcement."""
+        # Apply safe zone if enabled
+        if self.safe_zone_var.get():
+            # Keep x within horizontal bounds
+            x = max(self.safe_zone['min_x'], min(x, self.safe_zone['max_x']))
+            # Keep y within vertical bounds
+            y = max(self.safe_zone['min_y'], min(y, self.safe_zone['max_y']))
+        
+        # Log the tap if message provided
+        if log_message:
+            self.log(f"{log_message}: ({x}, {y})")
+        
+        # Execute the tap
+        subprocess.run(
+            ["adb", "-s", self.selected_device, "shell", "input", "tap", str(x), str(y)],
+            capture_output=True
+        )
+        
+        # Update the movement timer
+        self.update_movement_timer()
+    
+    def execute_random_pattern(self, intensity):
+        """Execute a random touch pattern."""
         self.log("Executing random touch pattern...")
         
-        # Get device screen dimensions
-        result = subprocess.run(
-            ["adb", "-s", self.selected_device, "shell", "wm", "size"],
-            capture_output=True,
-            text=True
-        )
-        
-        # Parse dimensions (example output: "Physical size: 1080x2340")
-        size_match = re.search(r'(\d+)x(\d+)', result.stdout)
-        if size_match:
-            width = int(size_match.group(1))
-            height = int(size_match.group(2))
-        else:
-            # Default size if we can't determine
-            width = 1080
-            height = 1920
-            
-        self.log(f"Screen dimensions: {width}x{height}")
-        
-        # Execute 3-7 random taps
-        num_taps = random.randint(3, 7)
+        # Number of taps based on intensity
+        num_taps = max(3, int(7 * intensity))
         
         for i in range(num_taps):
-            # Generate random coordinates within screen bounds
-            x = random.randint(int(width * 0.1), int(width * 0.9))
-            y = random.randint(int(height * 0.1), int(height * 0.9))
+            # Generate coordinates within safe zone
+            x, y = self.get_safe_coordinates()
             
-            self.log(f"Tap {i+1}/{num_taps}: ({x}, {y})")
-            subprocess.run(
-                ["adb", "-s", self.selected_device, "shell", "input", "tap", str(x), str(y)],
-                capture_output=True
-            )
+            # Execute the tap
+            self.execute_tap(x, y, f"Tap {i+1}/{num_taps}")
             
-            # Slight delay between taps
-            time.sleep(random.uniform(0.5, 1.5))
+            # Delay between taps (shorter with higher intensity)
+            delay = max(0.2, 1.5 * (1.0 - intensity))
+            time.sleep(random.uniform(0.2, delay))
     
-    def execute_circular_pattern(self):
+    def execute_circular_pattern(self, intensity):
         """Execute a circular touch pattern."""
-        import math
-        
         self.log("Executing circular touch pattern...")
         
-        # Get device screen dimensions
-        result = subprocess.run(
-            ["adb", "-s", self.selected_device, "shell", "wm", "size"],
-            capture_output=True,
-            text=True
-        )
+        # Calculate center within safe zone
+        center_x = (self.safe_zone['min_x'] + self.safe_zone['max_x']) // 2
+        center_y = (self.safe_zone['min_y'] + self.safe_zone['max_y']) // 2
         
-        # Parse dimensions (example output: "Physical size: 1080x2340")
-        size_match = re.search(r'(\d+)x(\d+)', result.stdout)
-        if size_match:
-            width = int(size_match.group(1))
-            height = int(size_match.group(2))
-        else:
-            # Default size if we can't determine
-            width = 1080
-            height = 1920
-            
-        # Calculate circle center and radius
-        center_x = width // 2
-        center_y = height // 2
-        radius = min(width, height) // 4
+        # Calculate radius based on safe zone (smaller of width/height)
+        max_radius_x = min(center_x - self.safe_zone['min_x'], self.safe_zone['max_x'] - center_x)
+        max_radius_y = min(center_y - self.safe_zone['min_y'], self.safe_zone['max_y'] - center_y)
+        radius = min(max_radius_x, max_radius_y) * 0.8  # 80% of max possible
         
-        self.log(f"Drawing circle at ({center_x}, {center_y}) with radius {radius}")
+        self.log(f"Drawing circle at ({center_x}, {center_y}) with radius {radius:.1f}")
         
-        # Draw circle with 8 points
-        num_points = 8
+        # Number of points based on intensity
+        num_points = max(8, int(16 * intensity))
+        
         for i in range(num_points):
             angle = 2 * math.pi * i / num_points
             x = int(center_x + radius * math.cos(angle))
             y = int(center_y + radius * math.sin(angle))
             
-            self.log(f"Tap {i+1}/{num_points}: ({x}, {y})")
-            subprocess.run(
-                ["adb", "-s", self.selected_device, "shell", "input", "tap", str(x), str(y)],
-                capture_output=True
-            )
+            # Execute the tap
+            self.execute_tap(x, y, f"Tap {i+1}/{num_points}")
             
-            # Slight delay between taps
-            time.sleep(0.5)
+            # Delay between taps (shorter with higher intensity)
+            delay = max(0.1, 0.5 * (1.0 - intensity))
+            time.sleep(delay)
     
-    def execute_fixed_pattern(self):
+    def execute_laser_pointer_pattern(self, intensity):
+        """Execute a laser pointer-like pattern."""
+        self.log("Executing laser pointer pattern...")
+        
+        # Start with a random point in the safe zone
+        last_x, last_y = self.get_safe_coordinates()
+        
+        # Number of movements based on intensity
+        num_moves = max(10, int(20 * intensity))
+        
+        for i in range(num_moves):
+            # Occasionally make a quick dart movement
+            if random.random() < 0.3:
+                # Quick dart - bigger movement
+                new_x = random.randint(self.safe_zone['min_x'], self.safe_zone['max_x'])
+                new_y = random.randint(self.safe_zone['min_y'], self.safe_zone['max_y'])
+                speed = random.uniform(0.1, 0.3)  # Faster for dart movements
+            else:
+                # Normal movement - smaller, more controlled
+                # Move a short distance from the last position
+                max_distance = 200 * intensity  # Max distance based on intensity
+                
+                # Calculate random vector
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(20, max_distance)
+                
+                # Calculate new position
+                new_x = int(last_x + distance * math.cos(angle))
+                new_y = int(last_y + distance * math.sin(angle))
+                
+                speed = random.uniform(0.3, 0.8)  # Slower for normal movements
+            
+            # Execute the tap
+            self.execute_tap(new_x, new_y, f"Laser move {i+1}/{num_moves}")
+            
+            # Update last position
+            last_x, last_y = new_x, new_y
+            
+            # Delay between movements (varied based on speed)
+            delay = speed * (1.0 - intensity)
+            time.sleep(max(0.1, delay))
+    
+    def execute_kitty_mode_pattern(self, intensity):
+        """Execute a pattern optimized for cat engagement."""
+        self.log("Executing kitty mode pattern...")
+        
+        # Start at a random position
+        last_x, last_y = self.get_safe_coordinates()
+        
+        # Choose a random pattern type for this iteration
+        pattern_type = random.choice([
+            "prey_movement",    # Small, erratic movements
+            "stalking_prey",    # Slow then quick movements
+            "hiding_prey",      # Stop and go
+            "fleeing_prey"      # Quick directional movements
+        ])
+        
+        self.log(f"Kitty mode pattern type: {pattern_type}")
+        
+        if pattern_type == "prey_movement":
+            # Small, erratic movements like a mouse
+            num_moves = max(15, int(30 * intensity))
+            
+            for i in range(num_moves):
+                # Small random movements
+                max_distance = 80 * intensity
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(10, max_distance)
+                
+                new_x = int(last_x + distance * math.cos(angle))
+                new_y = int(last_y + distance * math.sin(angle))
+                
+                # Execute the tap
+                self.execute_tap(new_x, new_y, f"Prey move {i+1}/{num_moves}")
+                
+                # Update last position
+                last_x, last_y = new_x, new_y
+                
+                # Random short pause
+                time.sleep(random.uniform(0.1, 0.3))
+                
+        elif pattern_type == "stalking_prey":
+            # Slow movement followed by quick dart
+            num_sequences = max(3, int(6 * intensity))
+            
+            for seq in range(num_sequences):
+                # Slow movements (3-5 steps)
+                slow_steps = random.randint(3, 5)
+                for i in range(slow_steps):
+                    # Very small movements
+                    angle = random.uniform(0, 2 * math.pi)
+                    distance = random.uniform(5, 30)
+                    
+                    new_x = int(last_x + distance * math.cos(angle))
+                    new_y = int(last_y + distance * math.sin(angle))
+                    
+                    # Execute the tap
+                    self.execute_tap(new_x, new_y, f"Stalk {seq+1}/{num_sequences} - slow {i+1}/{slow_steps}")
+                    
+                    # Update last position
+                    last_x, last_y = new_x, new_y
+                    
+                    # Slow movement
+                    time.sleep(random.uniform(0.4, 0.7))
+                
+                # Fast dart
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(100, 200) * intensity
+                
+                new_x = int(last_x + distance * math.cos(angle))
+                new_y = int(last_y + distance * math.sin(angle))
+                
+                # Execute the tap
+                self.execute_tap(new_x, new_y, f"Stalk {seq+1}/{num_sequences} - DART!")
+                
+                # Update last position
+                last_x, last_y = new_x, new_y
+                
+                # Pause before next sequence
+                time.sleep(random.uniform(0.5, 0.9))
+                
+        elif pattern_type == "hiding_prey":
+            # Stop and go pattern
+            num_sequences = max(4, int(8 * intensity))
+            
+            for seq in range(num_sequences):
+                # Hold still (but not longer than 1 second)
+                freeze_time = random.uniform(0.3, 0.7)
+                
+                # Log the freeze but don't actually pause longer than safety time
+                self.log(f"Hiding {seq+1}/{num_sequences} - freeze for {freeze_time:.1f}s")
+                
+                # Note: we don't actually freeze for the full time
+                # to maintain the safety timer, but we simulate it with tiny movements
+                freeze_start = time.time()
+                while (time.time() - freeze_start) < freeze_time:
+                    # Tiny movement within 2-3 pixels
+                    jitter_x = last_x + random.randint(-2, 2)
+                    jitter_y = last_y + random.randint(-2, 2)
+                    
+                    # Execute the tap but don't log to reduce noise
+                    self.execute_tap(jitter_x, jitter_y)
+                    
+                    # Brief pause
+                    time.sleep(0.2)
+                
+                # Quick movement after hiding
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(80, 180) * intensity
+                
+                new_x = int(last_x + distance * math.cos(angle))
+                new_y = int(last_y + distance * math.sin(angle))
+                
+                # Execute the tap
+                self.execute_tap(new_x, new_y, f"Hiding {seq+1}/{num_sequences} - DASH!")
+                
+                # Update last position
+                last_x, last_y = new_x, new_y
+                
+                # Pause
+                time.sleep(random.uniform(0.2, 0.4))
+                
+        elif pattern_type == "fleeing_prey":
+            # Quick directional movements
+            # Choose a general direction
+            main_angle = random.uniform(0, 2 * math.pi)
+            num_moves = max(8, int(15 * intensity))
+            
+            for i in range(num_moves):
+                # Move in generally the same direction with some variation
+                angle_variation = random.uniform(-0.5, 0.5)  # Up to 0.5 radians of variation
+                move_angle = main_angle + angle_variation
+                
+                # Distance varies by intensity
+                distance = random.uniform(40, 100) * intensity
+                
+                new_x = int(last_x + distance * math.cos(move_angle))
+                new_y = int(last_y + distance * math.sin(move_angle))
+                
+                # Execute the tap
+                self.execute_tap(new_x, new_y, f"Flee {i+1}/{num_moves}")
+                
+                # Update last position
+                last_x, last_y = new_x, new_y
+                
+                # Quick movement
+                time.sleep(random.uniform(0.2, 0.4))
+    
+    def execute_fixed_pattern(self, intensity):
         """Execute a fixed pattern of touch points."""
         self.log("Executing fixed touch pattern...")
         
-        # These coordinates should be customized based on the app's UI
-        # For now using placeholder values as a demonstration
-        fixed_points = [
-            (200, 500),  # Example point 1
-            (500, 800),  # Example point 2
-            (800, 500),  # Example point 3
-            (500, 300),  # Example point 4
+        # These coordinates are percentages of the safe zone
+        # They will be converted to actual coordinates based on the device's safe zone
+        fixed_points_pct = [
+            (0.2, 0.3),  # 20% from left, 30% from top of safe zone
+            (0.5, 0.7),  # Center horizontal, 70% from top
+            (0.8, 0.3),  # 80% from left, 30% from top
+            (0.5, 0.2),  # Center horizontal, 20% from top
         ]
         
-        for i, (x, y) in enumerate(fixed_points):
-            self.log(f"Tap {i+1}/{len(fixed_points)}: ({x}, {y})")
-            subprocess.run(
-                ["adb", "-s", self.selected_device, "shell", "input", "tap", str(x), str(y)],
-                capture_output=True
+        # Convert percentages to actual coordinates
+        safe_width = self.safe_zone['max_x'] - self.safe_zone['min_x']
+        safe_height = self.safe_zone['max_y'] - self.safe_zone['min_y']
+        
+        fixed_points = [
+            (
+                int(self.safe_zone['min_x'] + (pct_x * safe_width)),
+                int(self.safe_zone['min_y'] + (pct_y * safe_height))
             )
-            
-            # Slight delay between taps
-            time.sleep(0.8)
+            for pct_x, pct_y in fixed_points_pct
+        ]
+        
+        # Repeat the pattern based on intensity
+        repeats = max(1, int(3 * intensity))
+        
+        for r in range(repeats):
+            for i, (x, y) in enumerate(fixed_points):
+                # Execute the tap
+                self.execute_tap(x, y, f"Fixed tap {r+1}/{repeats} - {i+1}/{len(fixed_points)}")
+                
+                # Delay between taps (shorter with higher intensity)
+                delay = max(0.2, 0.8 * (1.0 - intensity))
+                time.sleep(delay)
 
 def main():
     root = tk.Tk()
