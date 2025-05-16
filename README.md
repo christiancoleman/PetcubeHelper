@@ -15,38 +15,39 @@ A cat-friendly application that automates interactions with the PetCube app usin
 ### Cat-Optimized Patterns
 - **Continuous Movement System**: Keeps the laser moving constantly for optimal cat engagement
 - **Kitty Mode**: Simulates natural prey movements with multiple behavior types
-  - Prey Movement: Small, erratic movements like a mouse
-  - Stalking Prey: Slow movement followed by quick darts
-  - Hiding Prey: Stop-and-go pattern with brief pauses
-  - Fleeing Prey: Quick directional movements
+	- Prey Movement: Small, erratic movements like a mouse
+	- Stalking Prey: Slow movement followed by quick darts
+	- Hiding Prey: Stop-and-go pattern with brief pauses
+	- Fleeing Prey: Quick directional movements
 - **Laser Pointer**: Simulates human-controlled laser pointer with natural movements
 - **Pattern Variety**: System automatically alternates between patterns to maintain interest
 
 ### Safety Features
 - **Customizable Safe Zone**: Restrict laser to any portion of the screen
-  - Adjustable boundaries using percentage values
-  - Horizontal range: Customizable left and right boundaries
-  - Vertical range: Customizable top and bottom boundaries
-  - Visual overlay showing safe/restricted areas
+	- Adjustable boundaries using percentage values
+	- Horizontal range: Customizable left and right boundaries
+	- Vertical range: Customizable top and bottom boundaries
+	- Visual overlay showing safe/restricted areas
 - **Continuous Movement**: Prevents laser from staying in one spot
-  - Safety timer ensures movement at least every second
-  - Prevents accidental eye contact with laser
+	- Safety timer ensures movement at least every second
+	- Prevents accidental eye contact with laser
 
 ### Control Options
 - **Intensity Slider**: Adjust pattern speed and complexity
-  - Higher intensity = faster movements, more variations
-  - Lower intensity = slower, more deliberate movements
-- **Pattern Change Interval**: Control how often the pattern changes
+	- Higher intensity = faster movements, more frequent changes
+	- Lower intensity = slower, more gentle movements with longer sub-patterns
+	- Controls both speed of individual movements and frequency of changes within a pattern
+- **Pattern Change Interval**: Control how often the pattern type changes (in seconds)
 - **Visual Feedback**: Monitor movements with screenshots and logs
-- **Settings Persistence**: Save your safe zone settings for future sessions
+- **Settings Persistence**: Save your safe zone and pattern preferences for future sessions
 
 ## Prerequisites
 
 - Python 3.6+ installed
 - ADB (Android Debug Bridge) installed and available in your PATH
 - Required Python packages:
-  - PIL/Pillow (for image processing)
-  - tkinter (usually comes with Python)
+	- PIL/Pillow (for image processing)
+	- tkinter (usually comes with Python)
 - A device running the PetCube app with USB debugging enabled
 
 ## Installation
@@ -54,25 +55,17 @@ A cat-friendly application that automates interactions with the PetCube app usin
 1. Clone or download this repository to your local machine
 2. Ensure Python 3.6+ is installed
 3. Install required packages:
-   ```
-   pip install pillow
-   ```
+	 ```
+	 pip install pillow
+	 ```
 4. Ensure ADB is installed and in your system PATH
 
 ## Usage
 
 ### Starting the Application
 
-There are two versions of the application:
-
-#### Modular Version (Recommended)
 ```
-python petcube_helper_modular.py
-```
-
-#### Single-File Version
-```
-python petcube_helper_gui.py
+python petcubehelper.py
 ```
 
 ### Setup Process
@@ -86,10 +79,10 @@ python petcube_helper_gui.py
 ### Customizing the Safe Zone
 
 1. **Adjust Percentages**: Set your desired boundaries using the percentage fields
-   - **Left %**: Left boundary (0% = left edge, 100% = right edge)
-   - **Right %**: Right boundary (must be greater than Left %)
-   - **Top %**: Top boundary (0% = top edge, 100% = bottom edge)
-   - **Bottom %**: Bottom boundary (must be greater than Top %)
+	 - **Left %**: Left boundary (0% = left edge, 100% = right edge)
+	 - **Right %**: Right boundary (must be greater than Left %)
+	 - **Top %**: Top boundary (0% = top edge, 100% = bottom edge)
+	 - **Bottom %**: Bottom boundary (must be greater than Top %)
 2. **Update Safe Zone**: Click "Update Safe Zone" to apply changes
 3. **Save Settings**: Click "Save Settings" to save for future sessions
 4. **View Results**: The screenshot will update to show your new safe zone
@@ -107,7 +100,7 @@ python petcube_helper_gui.py
 
 The application uses a continuous movement system to keep the laser in constant motion:
 
-- **No Pauses**: Unlike the original version, there are no waiting periods between patterns
+- **No Pauses**: The laser is constantly moving to prevent it from staying in one spot
 - **Pattern Changes**: The system will automatically switch between patterns at the specified interval
 - **Primary Pattern**: Your selected pattern will be used most of the time (70%)
 - **Pattern Variety**: For extra engagement, other patterns will occasionally be used (30%)
@@ -118,20 +111,17 @@ This approach ensures the laser is always moving, which is better for your cat's
 
 ## Application Architecture
 
-### Modular Version Architecture
-
-The modular version uses a clean, maintainable architecture with separate components:
+The application uses a clean, modular architecture with separate components:
 
 ```
 PetCubeHelper/
-├── petcube_helper_modular.py (main application)
+├── petcubehelper.py (main application)
 ├── modules/
 │   ├── __init__.py
 │   ├── adb_utils.py (ADB operations)
 │   ├── config.py (settings management)
 │   ├── patterns.py (pattern implementation)
 │   └── ui_components.py (UI creation and management)
-├── petcube_helper_gui.py (single-file version)
 └── README.md
 ```
 
@@ -141,7 +131,7 @@ Each module has a specific responsibility:
 - **config.py**: Manages application settings (loading, saving, safe zone calculation)
 - **patterns.py**: Implements all touch patterns (random, circular, laser pointer, kitty mode)
 - **ui_components.py**: Creates and manages the user interface
-- **petcube_helper_modular.py**: Main application that ties everything together
+- **petcubehelper.py**: Main application that ties everything together
 
 ## Pattern Details
 
@@ -160,7 +150,7 @@ Simulates a human-controlled laser pointer with:
 - Brief pauses followed by movement (never static for more than 1 second)
 
 ### Other Patterns
-- **Random**: Unpredictable taps across the safe zone
+- **Random**: Unpredictable movements across the safe zone
 - **Circular**: Circular movement pattern around the center of the safe zone
 - **Fixed Points**: Moves between predefined points in the safe zone
 
@@ -170,12 +160,12 @@ The application creates a customizable "safe zone" to avoid shining the laser in
 
 - **Percentage-Based**: All boundaries are set as percentages of the screen dimensions
 - **Visual Feedback**: The screenshot tab shows:
-  - Green border around the safe zone
-  - Red overlay on restricted areas
-  - Text labels clearly marking "SAFE ZONE" and "EXCLUDED AREA"
+	- Green border around the safe zone
+	- Red overlay on restricted areas
+	- Text labels clearly marking "SAFE ZONE" and "EXCLUDED AREA"
 - **Orientation**: 
-  - 0% is the top/left edge of the screen
-  - 100% is the bottom/right edge of the screen
+	- 0% is the top/left edge of the screen
+	- 100% is the bottom/right edge of the screen
 
 For cat-friendly operation, it's usually best to:
 - Keep the laser in the lower portion of the screen (set Top % to 50-60)
@@ -191,14 +181,14 @@ Your safe zone settings are automatically saved to `petcube_settings.json` when 
 - **ADB Not Found**: Ensure Android SDK Platform Tools is installed and in your system PATH
 - **No Devices Found**: Check that USB debugging is enabled on your device
 - **App Launch Failures**: 
-  - The package name detection should help identify the correct package
-  - Check if the app is installed on the device
+	- The package name detection should help identify the correct package
+	- Check if the app is installed on the device
 - **Pattern Issues**:
-  - If movements seem off-screen, try adjusting your safe zone settings
-  - Adjust the intensity slider to fine-tune the pattern speed
+	- If movements seem off-screen, try adjusting your safe zone settings
+	- Adjust the intensity slider to fine-tune the pattern speed
 - **Safe Zone Updates**: 
-  - Make sure your percentage values are valid (Left < Right, Top < Bottom)
-  - All percentages must be between 0 and 100
+	- Make sure your percentage values are valid (Left < Right, Top < Bottom)
+	- All percentages must be between 0 and 100
 
 ## For Developers
 
@@ -216,7 +206,7 @@ The modular architecture makes it easy to modify specific aspects of the applica
 To add new features, you might want to:
 
 1. Add a new module in the `modules/` directory
-2. Import it in `petcube_helper_modular.py`
+2. Import it in `petcubehelper.py`
 3. Integrate it with the existing components
 
 ### Contributing
