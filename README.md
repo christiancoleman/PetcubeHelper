@@ -64,8 +64,14 @@ A cat-friendly application that automates interactions with the PetCube app usin
 
 ### Starting the Application
 
-Run the GUI application:
+There are two versions of the application:
 
+#### Modular Version (Recommended)
+```
+python petcube_helper_modular.py
+```
+
+#### Single-File Version
 ```
 python petcube_helper_gui.py
 ```
@@ -97,6 +103,33 @@ python petcube_helper_gui.py
 4. **Enable Safe Zone**: Ensure the "Safe Zone" checkbox is selected (recommended)
 5. **Start Pattern**: Click "Start Pattern" to begin
 6. **Stop Pattern**: Click "Stop Pattern" when finished
+
+## Application Architecture
+
+### Modular Version Architecture
+
+The modular version uses a clean, maintainable architecture with separate components:
+
+```
+PetCubeHelper/
+├── petcube_helper_modular.py (main application)
+├── modules/
+│   ├── __init__.py
+│   ├── adb_utils.py (ADB operations)
+│   ├── config.py (settings management)
+│   ├── patterns.py (pattern implementation)
+│   └── ui_components.py (UI creation and management)
+├── petcube_helper_gui.py (single-file version)
+└── README.md
+```
+
+Each module has a specific responsibility:
+
+- **adb_utils.py**: Handles all ADB operations (device detection, app launch, screen taps)
+- **config.py**: Manages application settings (loading, saving, safe zone calculation)
+- **patterns.py**: Implements all touch patterns (random, circular, laser pointer, kitty mode)
+- **ui_components.py**: Creates and manages the user interface
+- **petcube_helper_modular.py**: Main application that ties everything together
 
 ## Pattern Details
 
@@ -156,7 +189,23 @@ Your safe zone settings are automatically saved to `petcube_settings.json` when 
 
 ## For Developers
 
-- The safe zone logic is in `update_safe_zone()`, `calculate_safe_zone()`, and `get_safe_coordinates()`
-- Settings persistence is handled by `load_settings()` and `save_settings()`
-- The patterns are implemented in methods like `execute_kitty_mode_pattern()` and can be customized
-- Movement safety is handled by `check_movement_safety()` and `update_movement_timer()`
+### Modifying the Application
+
+The modular architecture makes it easy to modify specific aspects of the application:
+
+- **Adding New Patterns**: Add methods to the `PatternExecutor` class in `patterns.py`
+- **Customizing the UI**: Modify the `PetCubeHelperUI` class in `ui_components.py`
+- **Adding New Settings**: Extend the `ConfigManager` class in `config.py`
+- **Improving ADB Interaction**: Enhance the `ADBUtility` class in `adb_utils.py`
+
+### Extending Functionality
+
+To add new features, you might want to:
+
+1. Add a new module in the `modules/` directory
+2. Import it in `petcube_helper_modular.py`
+3. Integrate it with the existing components
+
+### Contributing
+
+Contributions are welcome! Please feel free to submit pull requests or open issues to improve the application.
