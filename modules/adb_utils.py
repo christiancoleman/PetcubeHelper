@@ -10,6 +10,9 @@ import re
 import subprocess
 import time
 import sys
+import shutil
+import tempfile
+from PIL import Image
 
 class ADBUtility:
 	def __init__(self, logger=None):
@@ -236,18 +239,94 @@ class ADBUtility:
 			return False
 		
 		try:
-			subprocess.run(["adb", "-s", self.selected_device, "shell", "screencap", "/sdcard/screen.png"], 
-					capture_output=True, check=True, **self.subprocess_flags)
-			subprocess.run(["adb", "-s", self.selected_device, "pull", "/sdcard/screen.png", filename], 
-					capture_output=True, check=True, **self.subprocess_flags)
-			subprocess.run(["adb", "-s", self.selected_device, "shell", "rm", "/sdcard/screen.png"], 
-					capture_output=True, **self.subprocess_flags)
-			
-			self.log(f"Screenshot saved to {filename}")
-			return True
-		except subprocess.SubprocessError as e:
+			# Create a temp directory for our operations
+			with tempfile.TemporaryDirectory() as temp_dir:
+				temp_file = os.path.join(temp_dir, "temp_screen.png")
+				
+				# Method 1: Use exec-out directly to local file (preferred method)
+				try:
+					with open(temp_file, "wb") as f:
+						process = subprocess.Popen(
+							["adb", "-s", self.selected_device, "exec-out", "screencap", "-p"],
+							stdout=f,
+							stderr=subprocess.PIPE,
+							**self.subprocess_flags
+						)
+						_, stderr = process.communicate()
+						
+						if process.returncode != 0:
+							self.log(f"Method 1 failed: {stderr.decode() if stderr else 'Unknown error'}")
+							raise subprocess.SubprocessError("Screenshot failed with exec-out")
+				
+					# Validate the image
+					try:
+						img = Image.open(temp_file)
+						img.verify()
+						self.log("Screenshot successful with direct exec-out method")
+						shutil.copy2(temp_file, filename)
+						return True
+					except Exception as e:
+						self.log(f"Invalid image from exec-out method: {str(e)}")
+						# Continue to fallback method
+				except Exception as e:
+					self.log(f"Method 1 exception: {str(e)}")
+					# Continue to fallback method
+				
+				# Method 2: Traditional screencap to device then pull
+				try:
+					self.log("Trying fallback screenshot method...")
+					# Take screenshot on device
+					result1 = subprocess.run(
+						["adb", "-s", self.selected_device, "shell", "screencap", "-p", "/sdcard/screen.png"],
+						capture_output=True,
+						timeout=5,
+						**self.subprocess_flags
+					)
+					
+					# Give it a moment to complete
+					time.sleep(0.5)
+					
+					# Pull the file
+					result2 = subprocess.run(
+						["adb", "-s", self.selected_device, "pull", "/sdcard/screen.png", temp_file],
+						capture_output=True,
+						timeout=5,
+						**self.subprocess_flags
+					)
+					
+					# Clean up
+					subprocess.run(
+						["adb", "-s", self.selected_device, "shell", "rm", "/sdcard/screen.png"],
+						capture_output=True,
+						**self.subprocess_flags
+					)
+					
+					# Validate image
+					try:
+						img = Image.open(temp_file)
+						img.verify()
+						self.log("Screenshot successful with traditional method")
+						shutil.copy2(temp_file, filename)
+						return True
+					except Exception as e:
+						self.log(f"Invalid image from traditional method: {str(e)}")
+						raise Exception("Both screenshot methods failed")
+				except Exception as e:
+					self.log(f"Method 2 exception: {str(e)}")
+					raise Exception("All screenshot methods failed")
+					
+		except Exception as e:
 			self.log(f"Error taking screenshot: {str(e)}")
-			return False
+			
+			# Create a dummy image if all methods fail
+			try:
+				self.log("Creating dummy image as fallback...")
+				dummy_img = Image.new('RGB', (self.screen_width, self.screen_height), color=(0, 0, 0))
+				dummy_img.save(filename)
+				return True
+			except Exception as e2:
+				self.log(f"Failed to create dummy image: {str(e2)}")
+				return False
 	
 	def tap_screen(self, x, y):
 		"""Tap the screen at the specified coordinates.

@@ -3,6 +3,7 @@ Patterns Module for PetCube Helper
 
 This module contains all the touch pattern implementations for the PetCube Helper,
 including random, circular, laser pointer, and kitty mode patterns.
+It also includes cat-reactive patterns when a cat detector is provided.
 """
 
 import random
@@ -10,12 +11,13 @@ import math
 import time
 
 class PatternExecutor:
-	def __init__(self, adb_utility, logger=None):
+	def __init__(self, adb_utility, logger=None, cat_detector=None):
 		"""Initialize the pattern executor.
 		
 		Args:
 			adb_utility: ADBUtility instance for interacting with the device
 			logger: Function to use for logging messages
+			cat_detector: Optional CatDetector instance for cat-reactive patterns
 		"""
 		self.adb = adb_utility
 		self.logger = logger or (lambda msg: print(msg))
@@ -27,6 +29,15 @@ class PatternExecutor:
 			'max_y': 960,
 		}
 		self.enforce_safe_zone = True
+		
+		# Cat detection integration
+		self.cat_detector = cat_detector
+		self.cat_reactive_patterns = None
+		
+		if self.cat_detector:
+			# Import here to avoid circular imports
+			from modules.vision.cat_patterns import CatReactivePatterns
+			self.cat_reactive_patterns = CatReactivePatterns(self, self.cat_detector, logger)
 		
 		# Pattern execution tracking
 		self.pattern_active = False
@@ -169,6 +180,12 @@ class PatternExecutor:
 				self.execute_fixed_pattern(intensity)
 			elif pattern_type == "Kitty Mode":
 				self.execute_kitty_mode_pattern(intensity)
+			elif pattern_type == "Cat Following" and self.cat_reactive_patterns:
+				self.cat_reactive_patterns.execute_cat_following_pattern(intensity)
+			elif pattern_type == "Cat Teasing" and self.cat_reactive_patterns:
+				self.cat_reactive_patterns.execute_cat_teasing_pattern(intensity)
+			elif pattern_type == "Cat Enrichment" and self.cat_reactive_patterns:
+				self.cat_reactive_patterns.execute_cat_enrichment_pattern(intensity)
 			else:
 				self.log(f"Unknown pattern type: {pattern_type}")
 				self.stop_pattern()  # Mark pattern as inactive
@@ -360,6 +377,20 @@ class PatternExecutor:
 		elif pattern_type == "fleeing_prey":
 			# Quick directional movements
 			self._execute_fleeing_prey(last_x, last_y, intensity)
+	
+	def set_cat_detector(self, cat_detector):
+		"""Set a cat detector for cat-reactive patterns.
+		
+		Args:
+			cat_detector: CatDetector instance
+		"""
+		self.cat_detector = cat_detector
+		
+		# Create cat reactive patterns
+		if self.cat_detector:
+			# Import here to avoid circular imports
+			from modules.vision.cat_patterns import CatReactivePatterns
+			self.cat_reactive_patterns = CatReactivePatterns(self, self.cat_detector, self.logger)
 	
 	def _execute_prey_movement(self, start_x, start_y, intensity):
 		"""Execute prey movement pattern (small, erratic movements).

@@ -6,7 +6,7 @@ This module contains UI creation and management functions for the PetCube Helper
 
 import os
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from tkinter import ttk, scrolledtext, messagebox, filedialog
 from PIL import Image, ImageTk, ImageDraw
 
 class PetCubeHelperUI:
@@ -33,6 +33,7 @@ class PetCubeHelperUI:
 		self.log_queue = None
 		self.screenshot_path = None
 		self.photo = None
+		self.cat_detection_photo = None
 		
 		# Screen dimensions and safe zone
 		self.screen_width = 1080  # Default
@@ -173,8 +174,21 @@ class PetCubeHelperUI:
 		
 		ttk.Label(pattern_frame, text="Primary Pattern:").grid(row=0, column=0, padx=5, pady=5)
 		self.pattern_var = tk.StringVar(value="Kitty Mode")
+		
+		# Extended pattern list including cat-reactive patterns
+		pattern_options = [
+			"Kitty Mode", 
+			"Laser Pointer", 
+			"Random", 
+			"Circular", 
+			"Fixed Points",
+			"Cat Following",  # New cat-reactive patterns
+			"Cat Teasing",
+			"Cat Enrichment"
+		]
+		
 		pattern_combo = ttk.Combobox(pattern_frame, textvariable=self.pattern_var, 
-								   values=["Kitty Mode", "Random", "Circular", "Laser Pointer", "Fixed Points"], 
+								   values=pattern_options, 
 								   state="readonly", width=15)
 		pattern_combo.grid(row=0, column=1, padx=5, pady=5)
 		
@@ -196,6 +210,15 @@ class PetCubeHelperUI:
 		safe_zone_check = ttk.Checkbutton(pattern_frame, text="Enabled", variable=self.safe_zone_var)
 		safe_zone_check.grid(row=1, column=5, padx=5, pady=5)
 		
+		# Cat Detection Controls
+		ttk.Label(pattern_frame, text="Cat Detection:").grid(row=2, column=0, padx=5, pady=5)
+		self.cat_detection_var = tk.BooleanVar(value=False)
+		cat_detection_check = ttk.Checkbutton(pattern_frame, text="Enabled", 
+											  variable=self.cat_detection_var,
+											  command=self.callbacks.toggle_cat_detection)
+		cat_detection_check.grid(row=2, column=1, padx=5, pady=5)
+		
+		# Start and Stop buttons
 		self.start_pattern_button = ttk.Button(pattern_frame, text="Start Movement", 
 											   command=self.callbacks.start_pattern, 
 											   state=tk.DISABLED)
@@ -206,10 +229,10 @@ class PetCubeHelperUI:
 											  state=tk.DISABLED)
 		self.stop_pattern_button.grid(row=0, column=5, padx=5, pady=5)
 		
-		# Add help text about the new continuous movement system
-		help_text = "The laser will move continuously. 'Pattern Change' controls how often the movement style changes."
+		# Add help text about the patterns
+		help_text = "The laser will move continuously. Cat-reactive patterns require cat detection to be enabled."
 		ttk.Label(pattern_frame, text=help_text, 
-				 font=("", 8, "italic")).grid(row=2, column=0, columnspan=6, padx=5, pady=2)
+				 font=("", 8, "italic")).grid(row=3, column=0, columnspan=6, padx=5, pady=2)
 	
 	def create_notebook(self, parent):
 		"""Create the notebook with tabs.
@@ -235,6 +258,95 @@ class PetCubeHelperUI:
 		# Canvas for displaying screenshot
 		self.screenshot_canvas = tk.Canvas(screenshot_frame, bg="black")
 		self.screenshot_canvas.pack(fill=tk.BOTH, expand=True)
+		
+		# Cat Detection tab
+		cat_detection_frame = ttk.Frame(notebook, padding="5")
+		notebook.add(cat_detection_frame, text="Cat Detection")
+		
+		# Cat detection controls
+		controls_frame = ttk.Frame(cat_detection_frame)
+		controls_frame.pack(fill=tk.X, padx=5, pady=5)
+		
+		# Detection sensitivity
+		ttk.Label(controls_frame, text="Detection Sensitivity:").grid(row=0, column=0, padx=5, pady=5)
+		self.sensitivity_var = tk.DoubleVar(value=0.5)  # 0.0 to 1.0
+		sensitivity_slider = ttk.Scale(controls_frame, from_=0.1, to=1.0, orient="horizontal",
+									variable=self.sensitivity_var, length=200,
+									command=self.callbacks.update_detection_sensitivity)
+		sensitivity_slider.grid(row=0, column=1, padx=5, pady=5)
+		
+		# Capture detection frame button
+		self.capture_button = ttk.Button(controls_frame, text="Capture Detection Frame", 
+										  command=self.callbacks.capture_detection_frame)
+		self.capture_button.grid(row=0, column=2, padx=5, pady=5)
+		
+		# Canvas for displaying cat detection visualization
+		self.detection_canvas = tk.Canvas(cat_detection_frame, bg="black")
+		self.detection_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+		
+		# Settings tab
+		settings_frame = ttk.Frame(notebook, padding="5")
+		notebook.add(settings_frame, text="Settings")
+		
+		# Vision settings
+		vision_settings = ttk.LabelFrame(settings_frame, text="Cat Detection Settings", padding="5")
+		vision_settings.pack(fill=tk.X, padx=5, pady=5)
+		
+		# Detection interval
+		ttk.Label(vision_settings, text="Detection Interval (sec):").grid(row=0, column=0, padx=5, pady=5)
+		self.detection_interval_var = tk.StringVar(value="0.5")
+		detection_interval_entry = ttk.Entry(vision_settings, textvariable=self.detection_interval_var, width=5)
+		detection_interval_entry.grid(row=0, column=1, padx=5, pady=5)
+		
+		# Confidence threshold
+		ttk.Label(vision_settings, text="Confidence Threshold:").grid(row=0, column=2, padx=5, pady=5)
+		self.confidence_threshold_var = tk.StringVar(value="0.5")
+		confidence_threshold_entry = ttk.Entry(vision_settings, textvariable=self.confidence_threshold_var, width=5)
+		confidence_threshold_entry.grid(row=0, column=3, padx=5, pady=5)
+		
+		# Model selection
+		ttk.Label(vision_settings, text="Detection Model:").grid(row=1, column=0, padx=5, pady=5)
+		self.model_var = tk.StringVar(value="Default")
+		model_combo = ttk.Combobox(vision_settings, textvariable=self.model_var, 
+								  values=["Default", "Custom"], 
+								  state="readonly", width=15)
+		model_combo.grid(row=1, column=1, padx=5, pady=5)
+		
+		# Custom model path
+		ttk.Label(vision_settings, text="Custom Model Path:").grid(row=1, column=2, padx=5, pady=5)
+		self.model_path_var = tk.StringVar()
+		model_path_entry = ttk.Entry(vision_settings, textvariable=self.model_path_var, width=30)
+		model_path_entry.grid(row=1, column=3, padx=5, pady=5)
+		
+		# Browse button
+		browse_button = ttk.Button(vision_settings, text="Browse...", command=self.browse_model)
+		browse_button.grid(row=1, column=4, padx=5, pady=5)
+		
+		# Apply settings button
+		apply_button = ttk.Button(vision_settings, text="Apply Vision Settings", 
+								  command=self.callbacks.apply_vision_settings)
+		apply_button.grid(row=2, column=0, columnspan=5, padx=5, pady=10)
+		
+		# Reactive pattern settings
+		pattern_settings = ttk.LabelFrame(settings_frame, text="Reactive Pattern Settings", padding="5")
+		pattern_settings.pack(fill=tk.X, padx=5, pady=5)
+		
+		# Lead distance for cat following
+		ttk.Label(pattern_settings, text="Lead Distance (px):").grid(row=0, column=0, padx=5, pady=5)
+		self.lead_distance_var = tk.StringVar(value="150")
+		lead_distance_entry = ttk.Entry(pattern_settings, textvariable=self.lead_distance_var, width=5)
+		lead_distance_entry.grid(row=0, column=1, padx=5, pady=5)
+		
+		# Tease distance
+		ttk.Label(pattern_settings, text="Tease Distance (px):").grid(row=0, column=2, padx=5, pady=5)
+		self.tease_distance_var = tk.StringVar(value="200")
+		tease_distance_entry = ttk.Entry(pattern_settings, textvariable=self.tease_distance_var, width=5)
+		tease_distance_entry.grid(row=0, column=3, padx=5, pady=5)
+		
+		# Apply pattern settings button
+		apply_pattern_button = ttk.Button(pattern_settings, text="Apply Pattern Settings", 
+										 command=self.callbacks.apply_pattern_settings)
+		apply_pattern_button.grid(row=1, column=0, columnspan=4, padx=5, pady=10)
 	
 	def create_status_bar(self, parent):
 		"""Create the status bar.
@@ -245,6 +357,19 @@ class PetCubeHelperUI:
 		self.status_var = tk.StringVar(value="Ready.")
 		status_bar = ttk.Label(parent, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
 		status_bar.pack(fill=tk.X, padx=5, pady=2)
+	
+	def browse_model(self):
+		"""Open a file dialog to browse for a custom model."""
+		file_path = filedialog.askopenfilename(
+			filetypes=[
+				("Model Files", "*.xml *.weights *.pb *.onnx"),
+				("All Files", "*.*")
+			],
+			title="Select Custom Detection Model"
+		)
+		
+		if file_path:
+			self.model_path_var.set(file_path)
 	
 	def update_device_list(self, devices):
 		"""Update the device dropdown with the list of devices.
@@ -418,6 +543,58 @@ class PetCubeHelperUI:
 			self.log(f"Error displaying screenshot: {str(e)}")
 			return False
 	
+	def update_detection_image(self, filename):
+		"""Update the cat detection canvas with the given image file.
+		
+		Args:
+			filename: The filename of the detection image
+			
+		Returns:
+			bool: True if detection image was updated successfully
+		"""
+		if not os.path.exists(filename):
+			self.log(f"Detection image file not found: {filename}")
+			return False
+		
+		try:
+			# Clear any existing items
+			self.detection_canvas.delete("all")
+			
+			# Open the image with PIL
+			img = Image.open(filename)
+			
+			# Resize to fit canvas while maintaining aspect ratio
+			canvas_width = self.detection_canvas.winfo_width()
+			canvas_height = self.detection_canvas.winfo_height()
+			
+			# Avoid division by zero
+			if canvas_width <= 1 or canvas_height <= 1:
+				canvas_width = 600
+				canvas_height = 400
+			
+			img_width, img_height = img.size
+			ratio = min(canvas_width/img_width, canvas_height/img_height)
+			new_width = int(img_width * ratio)
+			new_height = int(img_height * ratio)
+			
+			img_resized = img.resize((new_width, new_height), Image.LANCZOS)
+			
+			# Convert to Tkinter PhotoImage
+			self.cat_detection_photo = ImageTk.PhotoImage(img_resized)
+			
+			# Calculate position to center the image
+			x = (canvas_width - new_width) // 2
+			y = (canvas_height - new_height) // 2
+			
+			# Add image to canvas
+			self.detection_canvas.create_image(x, y, anchor=tk.NW, image=self.cat_detection_photo)
+			
+			self.log(f"Updated cat detection visualization from {filename}")
+			return True
+		except Exception as e:
+			self.log(f"Error displaying detection image: {str(e)}")
+			return False
+	
 	def get_pattern_settings(self):
 		"""Get the current pattern settings.
 		
@@ -435,7 +612,67 @@ class PetCubeHelperUI:
 			'interval': interval,
 			'intensity': self.intensity_var.get(),
 			'safe_zone_enabled': self.safe_zone_var.get(),
+			'cat_detection_enabled': self.cat_detection_var.get(),
 		}
+	
+	def get_vision_settings(self):
+		"""Get the current vision settings.
+		
+		Returns:
+			dict: Dictionary with vision settings
+			or None if invalid
+		"""
+		try:
+			# Get values from entry fields
+			detection_interval = float(self.detection_interval_var.get())
+			confidence_threshold = float(self.confidence_threshold_var.get())
+			
+			# Validate ranges
+			if detection_interval <= 0:
+				raise ValueError("Detection interval must be greater than 0")
+			if confidence_threshold < 0 or confidence_threshold > 1:
+				raise ValueError("Confidence threshold must be between 0 and 1")
+			
+			# Get model settings
+			model_type = self.model_var.get()
+			model_path = self.model_path_var.get() if model_type == "Custom" else None
+			
+			return {
+				'detection_interval': detection_interval,
+				'confidence_threshold': confidence_threshold,
+				'model_type': model_type,
+				'model_path': model_path,
+				'sensitivity': self.sensitivity_var.get(),
+			}
+		except ValueError as e:
+			messagebox.showerror("Invalid Input", str(e))
+			return None
+	
+	def get_pattern_config(self):
+		"""Get the current pattern configuration settings.
+		
+		Returns:
+			dict: Dictionary with lead_distance and tease_distance keys
+			or None if invalid
+		"""
+		try:
+			# Get values from entry fields
+			lead_distance = int(self.lead_distance_var.get())
+			tease_distance = int(self.tease_distance_var.get())
+			
+			# Validate ranges
+			if lead_distance <= 0:
+				raise ValueError("Lead distance must be greater than 0")
+			if tease_distance <= 0:
+				raise ValueError("Tease distance must be greater than 0")
+			
+			return {
+				'lead_distance': lead_distance,
+				'tease_distance': tease_distance,
+			}
+		except ValueError as e:
+			messagebox.showerror("Invalid Input", str(e))
+			return None
 	
 	def get_safe_zone_settings(self):
 		"""Get the current safe zone settings.

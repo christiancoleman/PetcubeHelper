@@ -20,6 +20,7 @@ from modules.adb_utils import ADBUtility
 from modules.config import ConfigManager
 from modules.patterns import PatternExecutor
 from modules.ui_components import PetCubeHelperUI
+from modules.vision.cat_detector import CatDetector
 
 class PetCubeHelper:
 	def __init__(self, root):
@@ -42,8 +43,11 @@ class PetCubeHelper:
 		self.ui = PetCubeHelperUI(root, self.callbacks, logger=self.log)
 		self.ui.set_log_queue(self.log_queue)
 		
-		# Initialize pattern executor
+		# Initialize pattern executor (without cat detector yet)
 		self.pattern_executor = PatternExecutor(self.adb_utility, logger=self.log)
+		
+		# Cat detection (initialized when enabled)
+		self.cat_detector = None
 		
 		# Set up threading event for stopping operations
 		self.stop_event = threading.Event()
@@ -91,6 +95,32 @@ class PetCubeHelper:
 		# Set default intensity
 		if 'default_intensity' in self.config_manager.settings:
 			self.ui.intensity_var.set(self.config_manager.settings['default_intensity'])
+		
+		# Cat detection settings
+		if 'cat_detection_enabled' in self.config_manager.settings:
+			self.ui.cat_detection_var.set(self.config_manager.settings['cat_detection_enabled'])
+			
+		# Vision settings
+		if 'vision_settings' in self.config_manager.settings:
+			vision = self.config_manager.settings['vision_settings']
+			if 'detection_interval' in vision:
+				self.ui.detection_interval_var.set(str(vision['detection_interval']))
+			if 'confidence_threshold' in vision:
+				self.ui.confidence_threshold_var.set(str(vision['confidence_threshold']))
+			if 'model_type' in vision:
+				self.ui.model_var.set(vision['model_type'])
+			if 'model_path' in vision:
+				self.ui.model_path_var.set(vision['model_path'])
+			if 'sensitivity' in vision:
+				self.ui.sensitivity_var.set(vision['sensitivity'])
+		
+		# Pattern settings
+		if 'pattern_config' in self.config_manager.settings:
+			pattern = self.config_manager.settings['pattern_config']
+			if 'lead_distance' in pattern:
+				self.ui.lead_distance_var.set(str(pattern['lead_distance']))
+			if 'tease_distance' in pattern:
+				self.ui.tease_distance_var.set(str(pattern['tease_distance']))
 	
 	def start_adb(self):
 		"""Start the ADB server"""
@@ -203,6 +233,163 @@ class PetCubeHelper:
 		else:
 			self.ui.set_status("Failed to update safe zone.")
 	
+	def toggle_cat_detection(self):
+		"""Toggle cat detection on/off"""
+		enabled = self.ui.cat_detection_var.get()
+		
+		if enabled:
+			self.start_cat_detection()
+		else:
+			self.stop_cat_detection()
+	
+	def start_cat_detection(self):
+		"""Start the cat detection system"""
+		if self.cat_detector is None:
+			# Initialize cat detector
+			self.log("Initializing cat detection...")
+			self.cat_detector = CatDetector(self.adb_utility, logger=self.log)
+			
+			# Apply current vision settings
+			self.apply_vision_settings()
+			
+			# Update pattern executor with cat detector
+			self.pattern_executor.set_cat_detector(self.cat_detector)
+		
+		# Start detection
+		self.log("Starting cat detection...")
+		self.cat_detector.start_detection()
+		self.ui.set_status("Cat detection active")
+		
+		# Schedule periodic updates of detection visualization
+		self.schedule_detection_updates()
+	
+	def stop_cat_detection(self):
+		"""Stop the cat detection system"""
+		if self.cat_detector:
+			self.log("Stopping cat detection...")
+			self.cat_detector.stop_detection()
+			self.ui.set_status("Cat detection stopped")
+	
+	def schedule_detection_updates(self, interval=1000):
+		"""Schedule periodic updates of the detection visualization.
+		
+		Args:
+			interval: Update interval in milliseconds
+		"""
+		if self.cat_detector and self.ui.cat_detection_var.get():
+			# Only update if detection is active
+			self.update_detection_visualization()
+			
+			# Schedule next update
+			self.ui.root.after(interval, self.schedule_detection_updates, interval)
+	
+	def update_detection_visualization(self):
+		"""Update the detection visualization with current detection"""
+		if not self.cat_detector:
+			return
+		
+		# Save a debug frame with detection visualization
+		if self.cat_detector.save_debug_frame():
+			# Get the latest debug image
+			temp_dir = os.path.join(os.path.dirname(__file__), "temp")
+			debug_files = sorted([f for f in os.listdir(temp_dir) 
+								 if f.startswith("cat_detection_") and f.endswith(".png")],
+								 reverse=True)
+			
+			if debug_files:
+				latest_debug = os.path.join(temp_dir, debug_files[0])
+				self.ui.update_detection_image(latest_debug)
+				
+				# Limit the number of debug images to keep
+				if len(debug_files) > 10:
+					for old_file in debug_files[10:]:
+						try:
+							os.remove(os.path.join(temp_dir, old_file))
+						except:
+							pass
+	
+	def capture_detection_frame(self):
+		"""Capture a frame for detection visualization"""
+		if not self.cat_detector:
+			self.log("Cat detection not initialized.")
+			return
+		
+		self.log("Capturing detection frame...")
+		if self.cat_detector.save_debug_frame():
+			self.update_detection_visualization()
+			self.ui.set_status("Detection frame captured")
+		else:
+			self.ui.set_status("Failed to capture detection frame")
+	
+	def update_detection_sensitivity(self, value):
+		"""Update detection sensitivity.
+		
+		Args:
+			value: New sensitivity value
+		"""
+		if self.cat_detector:
+			try:
+				sensitivity = float(value)
+				if 0.1 <= sensitivity <= 1.0:
+					# Adjust confidence threshold based on sensitivity
+					# Higher sensitivity = lower threshold
+					confidence_threshold = 1.0 - (sensitivity * 0.5)  # Maps 0.1-1.0 to 0.95-0.5
+					self.cat_detector.confidence_threshold = confidence_threshold
+					
+					# Update UI
+					self.ui.confidence_threshold_var.set(f"{confidence_threshold:.2f}")
+					self.ui.set_status(f"Detection sensitivity updated: {sensitivity:.2f}")
+			except ValueError:
+				pass
+	
+	def apply_vision_settings(self):
+		"""Apply vision settings to the cat detector"""
+		if not self.cat_detector:
+			self.log("Cat detection not initialized.")
+			return
+		
+		# Get vision settings from UI
+		vision_settings = self.ui.get_vision_settings()
+		if not vision_settings:
+			return
+		
+		# Apply settings
+		self.log("Applying vision settings...")
+		
+		self.cat_detector.detection_interval = vision_settings['detection_interval']
+		self.cat_detector.confidence_threshold = vision_settings['confidence_threshold']
+		
+		# Save to config
+		self.config_manager.settings['vision_settings'] = vision_settings
+		self.config_manager.save_settings()
+		
+		self.ui.set_status("Vision settings applied")
+	
+	def apply_pattern_settings(self):
+		"""Apply pattern settings to the cat-reactive patterns"""
+		if not self.cat_detector or not self.pattern_executor.cat_reactive_patterns:
+			self.log("Cat reactive patterns not initialized.")
+			return
+		
+		# Get pattern settings from UI
+		pattern_config = self.ui.get_pattern_config()
+		if not pattern_config:
+			return
+		
+		# Apply settings
+		self.log("Applying pattern settings...")
+		
+		# Apply to cat reactive patterns
+		patterns = self.pattern_executor.cat_reactive_patterns
+		patterns.lead_distance = pattern_config['lead_distance']
+		patterns.tease_distance = pattern_config['tease_distance']
+		
+		# Save to config
+		self.config_manager.settings['pattern_config'] = pattern_config
+		self.config_manager.save_settings()
+		
+		self.ui.set_status("Pattern settings applied")
+	
 	def save_settings(self):
 		"""Save current settings to file"""
 		# Get current settings from UI
@@ -212,6 +399,9 @@ class PetCubeHelper:
 		self.config_manager.settings['default_pattern'] = pattern_settings['pattern']
 		self.config_manager.settings['default_interval'] = pattern_settings['interval']
 		self.config_manager.settings['default_intensity'] = pattern_settings['intensity']
+		self.config_manager.settings['cat_detection_enabled'] = pattern_settings['cat_detection_enabled']
+		
+		# Vision and pattern settings are saved when applied
 		
 		# Save to file
 		if self.config_manager.save_settings():
@@ -223,6 +413,16 @@ class PetCubeHelper:
 		"""Start the selected pattern in a thread"""
 		# Get pattern settings from UI
 		pattern_settings = self.ui.get_pattern_settings()
+		
+		# Check if cat detection is needed but not enabled
+		pattern_type = pattern_settings['pattern']
+		needs_cat_detection = pattern_type in ["Cat Following", "Cat Teasing", "Cat Enrichment"]
+		
+		if needs_cat_detection and not pattern_settings['cat_detection_enabled']:
+			self.log("Cat detection must be enabled for this pattern.")
+			messagebox.showwarning("Cat Detection Required", 
+								   f"The '{pattern_type}' pattern requires cat detection to be enabled.")
+			return
 		
 		# Set safe zone enforcement
 		self.pattern_executor.enable_safe_zone(pattern_settings['safe_zone_enabled'])
@@ -264,8 +464,17 @@ class PetCubeHelper:
 		# Initialize movement timer
 		self.pattern_executor.update_movement_timer()
 		
-		# Available patterns for variety
-		all_patterns = ["Random", "Circular", "Laser Pointer", "Fixed Points", "Kitty Mode"]
+		# Determine if we're using cat-reactive patterns
+		is_cat_reactive = main_pattern in ["Cat Following", "Cat Teasing", "Cat Enrichment"]
+		
+		# Available patterns for variety (exclude cat-reactive ones if cat detection isn't available)
+		if is_cat_reactive and self.cat_detector:
+			# We're using cat-reactive patterns, so include all types
+			all_patterns = ["Random", "Circular", "Laser Pointer", "Fixed Points", "Kitty Mode", 
+						   "Cat Following", "Cat Teasing", "Cat Enrichment"]
+		else:
+			# Only use non-cat-reactive patterns
+			all_patterns = ["Random", "Circular", "Laser Pointer", "Fixed Points", "Kitty Mode"]
 		
 		# Loop until stop event is set
 		next_pattern_change = time.time() + pattern_change_interval
@@ -319,6 +528,10 @@ class PetCubeHelper:
 						self.screen_width, self.screen_height
 					)
 					self.ui.update_screenshot(ss_filename, self.screen_width, self.screen_height, safe_zone)
+					
+					# Also update detection visualization if active
+					if self.cat_detector and self.ui.cat_detection_var.get():
+						self.update_detection_visualization()
 	
 	def stop_pattern(self):
 		"""Stop the running pattern"""
@@ -375,6 +588,26 @@ class UICallbacks:
 	def save_settings(self):
 		"""Save settings button callback"""
 		threading.Thread(target=self.app.save_settings, daemon=True).start()
+	
+	def toggle_cat_detection(self):
+		"""Toggle cat detection checkbox callback"""
+		threading.Thread(target=self.app.toggle_cat_detection, daemon=True).start()
+	
+	def capture_detection_frame(self):
+		"""Capture detection frame button callback"""
+		threading.Thread(target=self.app.capture_detection_frame, daemon=True).start()
+	
+	def update_detection_sensitivity(self, value):
+		"""Detection sensitivity slider callback"""
+		self.app.update_detection_sensitivity(value)
+	
+	def apply_vision_settings(self):
+		"""Apply vision settings button callback"""
+		threading.Thread(target=self.app.apply_vision_settings, daemon=True).start()
+	
+	def apply_pattern_settings(self):
+		"""Apply pattern settings button callback"""
+		threading.Thread(target=self.app.apply_pattern_settings, daemon=True).start()
 	
 	def start_pattern(self):
 		"""Start pattern button callback"""
