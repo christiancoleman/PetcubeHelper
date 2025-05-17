@@ -42,10 +42,10 @@ A cat-friendly application that automates interactions with the PetCube app usin
 
 ### Safety Features
 - **Customizable Safe Zone**: Restrict laser to any portion of the screen
-	- Adjustable boundaries using percentage values
-	- Horizontal range: Customizable left and right boundaries
-	- Vertical range: Customizable top and bottom boundaries
-	- Visual overlay showing safe/restricted areas
+        - Adjustable boundaries using percentage values or by dragging a rectangle on the screenshot
+        - Horizontal range: Customizable left and right boundaries
+        - Vertical range: Customizable top and bottom boundaries
+        - Visual overlay showing safe/restricted areas
 - **Continuous Movement**: Prevents laser from staying in one spot
 	- Safety timer ensures movement at least every second
 	- Prevents accidental eye contact with laser
@@ -98,13 +98,14 @@ python petcubehelper.py
 ### Customizing the Safe Zone
 
 1. **Adjust Percentages**: Set your desired boundaries using the percentage fields
-	 - **Left %**: Left boundary (0% = left edge, 100% = right edge)
-	 - **Right %**: Right boundary (must be greater than Left %)
-	 - **Top %**: Top boundary (0% = top edge, 100% = bottom edge)
-	 - **Bottom %**: Bottom boundary (must be greater than Top %)
-2. **Update Safe Zone**: Click "Update Safe Zone" to apply changes
-3. **Save Settings**: Click "Save Settings" to save for future sessions
-4. **View Results**: The screenshot will update to show your new safe zone
+         - **Left %**: Left boundary (0% = left edge, 100% = right edge)
+         - **Right %**: Right boundary (must be greater than Left %)
+         - **Top %**: Top boundary (0% = top edge, 100% = bottom edge)
+         - **Bottom %**: Bottom boundary (must be greater than Top %)
+2. **Drag on Screenshot**: In the Screenshot tab, click and drag a rectangle to set the safe zone visually
+3. **Update Safe Zone**: Click "Update Safe Zone" to apply changes
+4. **Save Settings**: Click "Save Settings" to save for future sessions
+5. **View Results**: The screenshot will update to show your new safe zone
 
 ### Using Cat Detection
 
