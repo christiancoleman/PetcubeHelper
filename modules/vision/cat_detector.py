@@ -54,11 +54,12 @@ class CatDetector:
 			
 			# For now, using the default OpenCV DNN face detector as a placeholder
 			# This will be replaced with a proper cat detector model later
-			prototxt_path = os.path.join(cv2.__path__[0], 'data', 'haarcascade_frontalcatface.xml')
+			# Use OpenCV's built-in haarcascade path for compatibility
+			prototxt_path = os.path.join(cv2.data.haarcascades, 'haarcascade_frontalcatface.xml')
 			
 			# If cat model isn't available, fall back to a general model
 			if not os.path.exists(prototxt_path):
-				prototxt_path = os.path.join(cv2.__path__[0], 'data', 'haarcascade_frontalface_default.xml')
+				prototxt_path = os.path.join(cv2.data.haarcascades, 'haarcascade_frontalface_default.xml')
 				self.log("Cat-specific model not found, using general detection model")
 			else:
 				self.log("Found cat detection model")
