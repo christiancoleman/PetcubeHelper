@@ -27,8 +27,6 @@ class ConfigManager:
 				'max_y': 0.9,   # 90% from top
 			},
 			'default_pattern': 'Kitty Mode',
-			'default_interval': 60,
-			'default_intensity': 0.5,
 			'default_time_unit_ms': 1000,  # 1 second
 		}
 		

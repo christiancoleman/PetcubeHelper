@@ -203,10 +203,6 @@ class PetCubeHelperUI:
                                                                    state="readonly", width=15)
                 pattern_combo.grid(row=0, column=1, padx=5, pady=5)
                 
-                ttk.Label(pattern_frame, text="Pattern Change (sec):").grid(row=0, column=2, padx=5, pady=5)
-                self.interval_var = tk.StringVar(value="60")
-                interval_entry = ttk.Entry(pattern_frame, textvariable=self.interval_var, width=5)
-                interval_entry.grid(row=0, column=3, padx=5, pady=5)
                 
                 # Time Unit Setting
                 ttk.Label(pattern_frame, text="Time Unit (ms):").grid(row=1, column=0, padx=5, pady=5)
@@ -214,18 +210,11 @@ class PetCubeHelperUI:
                 time_unit_entry = ttk.Entry(pattern_frame, textvariable=self.time_unit_var, width=8)
                 time_unit_entry.grid(row=1, column=1, padx=5, pady=5)
                 
-                # Pattern Intensity Slider
-                ttk.Label(pattern_frame, text="Intensity:").grid(row=2, column=0, padx=5, pady=5)
-                self.intensity_var = tk.DoubleVar(value=0.5)  # 0.0 to 1.0
-                intensity_slider = ttk.Scale(pattern_frame, from_=0.1, to=1.0, orient="horizontal",
-                                                                        variable=self.intensity_var, length=200)
-                intensity_slider.grid(row=2, column=1, columnspan=3, padx=5, pady=5)
-                
                 # Safe Zone Controls
-                ttk.Label(pattern_frame, text="Safe Zone:").grid(row=2, column=4, padx=5, pady=5)
+                ttk.Label(pattern_frame, text="Safe Zone:").grid(row=2, column=0, padx=5, pady=5)
                 self.safe_zone_var = tk.BooleanVar(value=True)
                 safe_zone_check = ttk.Checkbutton(pattern_frame, text="Enabled", variable=self.safe_zone_var)
-                safe_zone_check.grid(row=2, column=5, padx=5, pady=5)
+                safe_zone_check.grid(row=2, column=1, padx=5, pady=5)
                 
                 # Cat Detection Controls
                 ttk.Label(pattern_frame, text="Cat Detection:").grid(row=3, column=0, padx=5, pady=5)
@@ -239,12 +228,12 @@ class PetCubeHelperUI:
                 self.start_pattern_button = ttk.Button(pattern_frame, text="Start Movement", 
                                                                                            command=self.callbacks.start_pattern, 
                                                                                            state=tk.DISABLED)
-                self.start_pattern_button.grid(row=0, column=4, padx=5, pady=5)
+                self.start_pattern_button.grid(row=0, column=2, padx=5, pady=5)
                 
                 self.stop_pattern_button = ttk.Button(pattern_frame, text="Stop Movement", 
                                                                                           command=self.callbacks.stop_pattern, 
                                                                                           state=tk.DISABLED)
-                self.stop_pattern_button.grid(row=0, column=5, padx=5, pady=5)
+                self.stop_pattern_button.grid(row=0, column=3, padx=5, pady=5)
                 
                 # Add help text about the patterns
                 help_text = "Time unit defines the base duration for pattern movements. Cat-reactive patterns require cat detection."
@@ -763,14 +752,8 @@ class PetCubeHelperUI:
                 """Get the current pattern settings.
                 
                 Returns:
-                        dict: Dictionary with pattern, interval, intensity, and safe_zone_enabled keys
+                        dict: Dictionary with pattern, safe_zone_enabled, cat_detection_enabled, and time_unit_ms keys
                 """
-                try:
-                        interval = int(self.interval_var.get())
-                except ValueError:
-                        interval = 60
-                        self.interval_var.set("60")
-                
                 try:
                         time_unit = int(self.time_unit_var.get())
                         if time_unit < 100:  # Minimum 100ms
@@ -782,8 +765,6 @@ class PetCubeHelperUI:
                 
                 return {
                         'pattern': self.pattern_var.get(),
-                        'interval': interval,
-                        'intensity': self.intensity_var.get(),
                         'safe_zone_enabled': self.safe_zone_var.get(),
                         'cat_detection_enabled': self.cat_detection_var.get(),
                         'time_unit_ms': time_unit,

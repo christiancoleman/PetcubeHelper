@@ -6,7 +6,6 @@ touch patterns using the new time-unit based pattern system.
 """
 
 import random
-import time
 from patterns import PATTERN_CLASSES
 
 
@@ -21,7 +20,6 @@ class PatternExecutor:
         """
         self.adb = adb_utility
         self.logger = logger or (lambda msg: print(msg))
-        self.last_movement_time = time.time()
         self.safe_zone = {
             'min_x': 0,
             'max_x': 1080,
@@ -41,10 +39,6 @@ class PatternExecutor:
             # Import here to avoid circular imports
             from modules.vision.cat_patterns import CatReactivePatterns
             self.cat_reactive_patterns = CatReactivePatterns(self, self.cat_detector, logger)
-        
-        # Pattern execution tracking
-        self.pattern_active = False
-        self.safety_verbose = False  # Control safety movement logging verbosity
     
     def log(self, message):
         """Log a message using the provided logger function."""
@@ -75,35 +69,6 @@ class PatternExecutor:
         """
         self.enforce_safe_zone = enabled
     
-    def update_movement_timer(self):
-        """Update the last movement timestamp."""
-        self.last_movement_time = time.time()
-    
-    def check_movement_safety(self):
-        """Check if we need to force movement for safety.
-        
-        Returns:
-            bool: True if movement is needed
-        """
-        current_time = time.time()
-        time_since_last_movement = current_time - self.last_movement_time
-        
-        # If more than 1 second has passed without movement, we need to move
-        if time_since_last_movement > 1.0:
-            # Only log safety movement if verbose or not in an active pattern
-            if self.safety_verbose or not self.pattern_active:
-                self.log("Safety timer triggered - forcing movement")
-            return True
-        return False
-    
-    def start_pattern(self):
-        """Mark pattern as active."""
-        self.pattern_active = True
-    
-    def stop_pattern(self):
-        """Mark pattern as inactive."""
-        self.pattern_active = False
-    
     def execute_tap(self, x, y, log_message=None):
         """Execute a tap with safe zone enforcement.
         
@@ -118,13 +83,8 @@ class PatternExecutor:
         # Apply safe zone if enabled
         if self.enforce_safe_zone:
             # Keep x within horizontal bounds
-            orig_x, orig_y = x, y
             x = max(self.safe_zone['min_x'], min(x, self.safe_zone['max_x']))
             y = max(self.safe_zone['min_y'], min(y, self.safe_zone['max_y']))
-            
-            # Log if coordinates were constrained
-            if (x != orig_x or y != orig_y) and log_message and self.safety_verbose:
-                self.log(f"Coordinates constrained to safe zone: ({orig_x}, {orig_y}) -> ({x}, {y})")
         
         # Log the tap if message provided
         if log_message:
@@ -132,9 +92,6 @@ class PatternExecutor:
         
         # Execute the tap
         success = self.adb.tap_screen(x, y)
-        
-        # Update the movement timer
-        self.update_movement_timer()
         
         return success
     
@@ -150,61 +107,38 @@ class PatternExecutor:
         
         return x, y
     
-    def make_safety_movement(self, intensity=0.5):
-        """Make a small, safe movement to prevent static pointing.
-        
-        Args:
-            intensity: Movement intensity (0.1-1.0)
-        """
-        # Only log if not in an active pattern (reduces log noise)
-        if not self.pattern_active or self.safety_verbose:
-            self.log("Safety movement to prevent static pointing")
-        
-        # Get current coordinates
-        x, y = self.get_safe_coordinates()
-        
-        # Make a small tap (without additional logging)
-        self.execute_tap(x, y)
-    
-    def execute_pattern(self, pattern_type, intensity=0.5):
+    def execute_pattern(self, pattern_type):
         """Execute the specified pattern.
         
         Args:
             pattern_type: The pattern type to execute
-            intensity: Pattern intensity (0.1-1.0)
             
         Returns:
             bool: True if pattern executed successfully
         """
-        self.log(f"Executing {pattern_type} pattern with intensity {intensity:.2f}...")
-        
-        # Mark pattern as active to suppress safety logs
-        self.start_pattern()
+        self.log(f"Executing {pattern_type} pattern...")
         
         try:
             # Check if it's a cat-reactive pattern
             if pattern_type in ["Cat Following", "Cat Teasing", "Cat Enrichment"] and self.cat_reactive_patterns:
                 if pattern_type == "Cat Following":
-                    self.cat_reactive_patterns.execute_cat_following_pattern(intensity)
+                    self.cat_reactive_patterns.execute_cat_following_pattern(0.5)
                 elif pattern_type == "Cat Teasing":
-                    self.cat_reactive_patterns.execute_cat_teasing_pattern(intensity)
+                    self.cat_reactive_patterns.execute_cat_teasing_pattern(0.5)
                 elif pattern_type == "Cat Enrichment":
-                    self.cat_reactive_patterns.execute_cat_enrichment_pattern(intensity)
+                    self.cat_reactive_patterns.execute_cat_enrichment_pattern(0.5)
             elif pattern_type in PATTERN_CLASSES:
                 # Create and execute the pattern
                 pattern_class = PATTERN_CLASSES[pattern_type]
                 pattern = pattern_class(self, self.time_unit_ms)
-                pattern.execute(intensity)
+                pattern.execute(0.5)
             else:
                 self.log(f"Unknown pattern type: {pattern_type}")
-                self.stop_pattern()
                 return False
             
-            self.stop_pattern()  # Mark pattern as inactive
             return True
         except Exception as e:
             self.log(f"Error executing pattern: {str(e)}")
-            self.stop_pattern()  # Mark pattern as inactive
             return False
     
     def set_cat_detector(self, cat_detector):

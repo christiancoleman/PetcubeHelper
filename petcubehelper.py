@@ -8,12 +8,12 @@ This is the main application file that ties together all components.
 """
 
 import tkinter as tk
+from tkinter import messagebox
 import threading
 import queue
 import time
 import sys
 import os
-import random
 
 # Import modules
 from modules.adb_utils import ADBUtility
@@ -88,13 +88,6 @@ class PetCubeHelper:
 		if 'default_pattern' in self.config_manager.settings:
 			self.ui.pattern_var.set(self.config_manager.settings['default_pattern'])
 		
-		# Set default interval
-		if 'default_interval' in self.config_manager.settings:
-			self.ui.interval_var.set(str(self.config_manager.settings['default_interval']))
-		
-		# Set default intensity
-		if 'default_intensity' in self.config_manager.settings:
-			self.ui.intensity_var.set(self.config_manager.settings['default_intensity'])
 		
 		# Set default time unit
 		if 'default_time_unit_ms' in self.config_manager.settings:
@@ -402,8 +395,6 @@ class PetCubeHelper:
 		
 		# Update config with current settings
 		self.config_manager.settings['default_pattern'] = pattern_settings['pattern']
-		self.config_manager.settings['default_interval'] = pattern_settings['interval']
-		self.config_manager.settings['default_intensity'] = pattern_settings['intensity']
 		self.config_manager.settings['cat_detection_enabled'] = pattern_settings['cat_detection_enabled']
 		self.config_manager.settings['default_time_unit_ms'] = pattern_settings['time_unit_ms']
 		
@@ -453,93 +444,33 @@ class PetCubeHelper:
 		# Reset the stop event
 		self.stop_event.clear()
 		
-		# Mark pattern as active to minimize safety movement logging
-		self.pattern_executor.start_pattern()
-		
 		# Update UI buttons
 		self.ui.enable_pattern_buttons(False, True)
 		
 		# Start pattern thread with continuous movement
 		threading.Thread(
 			target=self.continuous_pattern_loop,
-			args=(
-				pattern_settings['pattern'],
-				pattern_settings['interval'],
-				pattern_settings['intensity']
-			),
+			args=(pattern_settings['pattern'],),
 			daemon=True
 		).start()
 	
-	def continuous_pattern_loop(self, main_pattern, pattern_change_interval, intensity):
-		"""Execute patterns in a continuous loop, changing patterns at intervals.
+	def continuous_pattern_loop(self, pattern):
+		"""Execute a single pattern in a continuous loop.
 		
 		Args:
-			main_pattern: The primary pattern type selected by the user
-			pattern_change_interval: Time in seconds between pattern type changes
-			intensity: Pattern intensity (0.1-1.0)
+			pattern: The pattern type to execute
 		"""
-		self.log(f"Starting continuous movement with primary pattern: {main_pattern}")
-		self.log(f"Pattern will change every {pattern_change_interval} seconds")
-		self.log(f"Movement intensity: {intensity:.2f}")
-		
-		self.ui.set_status(f"Running {main_pattern} pattern")
-		
-		# Initialize movement timer
-		self.pattern_executor.update_movement_timer()
-		
-		# Determine if we're using cat-reactive patterns
-		is_cat_reactive = main_pattern in ["Cat Following", "Cat Teasing", "Cat Enrichment"]
-		
-		# Available patterns for variety (exclude cat-reactive ones if cat detection isn't available)
-		if is_cat_reactive and self.cat_detector:
-			# We're using cat-reactive patterns, so include all types
-			all_patterns = ["Random", "Circular", "Laser Pointer", "Fixed Points", "Kitty Mode", 
-						   "Cat Following", "Cat Teasing", "Cat Enrichment"]
-		else:
-			# Only use non-cat-reactive patterns
-			all_patterns = ["Random", "Circular", "Laser Pointer", "Fixed Points", "Kitty Mode"]
+		self.log(f"Starting {pattern} pattern")
+		self.ui.set_status(f"Running {pattern} pattern")
 		
 		# Loop until stop event is set
-		next_pattern_change = time.time() + pattern_change_interval
-		current_pattern = main_pattern
-		running_time = 0
-		
 		while not self.stop_event.is_set():
-			# Time to change patterns?
-			current_time = time.time()
-			if current_time >= next_pattern_change:
-				# Decide on next pattern (usually the main pattern, sometimes a random one)
-				if random.random() < 0.7:  # 70% chance to use main pattern
-					current_pattern = main_pattern
-				else:
-					# Choose a different pattern for variety
-					other_patterns = [p for p in all_patterns if p != current_pattern]
-					current_pattern = random.choice(other_patterns)
-				
-				self.log(f"Changing to {current_pattern} pattern")
-				next_pattern_change = current_time + pattern_change_interval
-				
-				# Show pattern change in UI
-				self.ui.set_status(f"Running {current_pattern} pattern (changes in {pattern_change_interval}s)")
+			# Execute the pattern
+			self.pattern_executor.execute_pattern(pattern)
 			
-			# Calculate sub-pattern length based on intensity
-			# Higher intensity = shorter, more varied patterns
-			sub_pattern_duration = max(3, 10 * (1.0 - intensity))
-			
-			# Execute current pattern for a short duration
-			self.log(f"Executing {current_pattern} movement sequence")
-			self.pattern_executor.execute_pattern(current_pattern, intensity)
-			
-			# Update status with countdown to next pattern change
-			seconds_to_next = max(1, int(next_pattern_change - time.time()))
-			self.ui.set_status(f"Running {current_pattern} pattern (changes in {seconds_to_next}s)")
-			
-			# Very short gap between sub-patterns - just enough for the app to process
-			# but short enough that the laser movement appears continuous
+			# Very short gap between pattern executions
 			if not self.stop_event.is_set():
 				time.sleep(0.1)
-			
-			running_time += 1
 	
 	def stop_pattern(self):
 		"""Stop the running pattern"""

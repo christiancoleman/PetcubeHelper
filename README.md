@@ -41,14 +41,13 @@ A cat-friendly application that automates interactions with the PetCube app usin
   - Creates varied movements in your cat's field of view
 
 ### Cat-Optimized Patterns
-- **Continuous Movement System**: Keeps the laser moving constantly for optimal cat engagement
 - **Kitty Mode**: Simulates natural prey movements with multiple behavior types
 	- Prey Movement: Small, erratic movements like a mouse
 	- Stalking Prey: Slow movement followed by quick darts
 	- Hiding Prey: Stop-and-go pattern with brief pauses
 	- Fleeing Prey: Quick directional movements
 - **Laser Pointer**: Simulates human-controlled laser pointer with natural movements
-- **Pattern Variety**: System automatically alternates between patterns to maintain interest
+- **Pattern Types**: Choose from various patterns including Random, Circular, Fixed Points, and cat-reactive patterns
 
 ### Safety Features
 - **Customizable Safe Zone**: Restrict laser to any portion of the screen
@@ -56,19 +55,12 @@ A cat-friendly application that automates interactions with the PetCube app usin
   - Horizontal range: Customizable left and right boundaries
   - Vertical range: Customizable top and bottom boundaries
   - Visual overlay showing safe/restricted areas
-- **Continuous Movement**: Prevents laser from staying in one spot
-  - Safety timer ensures movement at least every second
-  - Prevents accidental eye contact with laser
 
 ### Control Options
 - **Time Unit (ms)**: Control the base duration for pattern movements
   - Default: 1000ms (1 second)
   - Minimum: 100ms for very fast patterns
   - Affects all pattern timings proportionally
-- **Intensity Slider**: Adjust pattern speed and complexity
-  - Higher intensity = faster movements, more frequent changes
-  - Lower intensity = slower, more gentle movements with longer sub-patterns
-- **Pattern Change Interval**: Control how often the pattern type changes (in seconds)
 - **Visual Feedback**: Monitor movements with real-time screenshots and logs
 - **Settings Persistence**: Save your safe zone, time unit, and pattern preferences
 
@@ -148,15 +140,13 @@ The application now handles screenshots in memory without saving files:
 
 ### Running Patterns
 
-1. **Select Primary Pattern**: Choose from any of the available patterns
+1. **Select Pattern**: Choose from any of the available patterns
    - Standard patterns: Kitty Mode, Laser Pointer, Random, Circular, Fixed Points
    - Cat-reactive patterns: Cat Following, Cat Teasing, Cat Enrichment (requires cat detection)
-2. **Set Pattern Change Interval**: Enter the time in seconds between pattern style changes
-3. **Configure Time Unit**: Set the base duration for pattern movements
-4. **Adjust Intensity**: Use the slider to control speed and complexity
-5. **Enable Safe Zone**: Ensure the "Safe Zone" checkbox is selected (recommended)
-6. **Start Movement**: Click "Start Movement" to begin continuous laser movement
-7. **Stop Movement**: Click "Stop Movement" when finished
+2. **Configure Time Unit**: Set the base duration for pattern movements
+3. **Enable Safe Zone**: Ensure the "Safe Zone" checkbox is selected (recommended)
+4. **Start Movement**: Click "Start Movement" to begin laser movement
+5. **Stop Movement**: Click "Stop Movement" when finished
 
 ## Application Architecture
 
@@ -262,8 +252,6 @@ Same as move_to but named for clarity (instant move without wait).
 Your settings are automatically saved to `petcube_settings.json` when you click "Save Settings":
 - Safe zone boundaries
 - Default pattern selection
-- Pattern change interval
-- Movement intensity
 - Time unit duration
 - Cat detection preferences
 
