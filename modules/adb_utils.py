@@ -328,6 +328,48 @@ class ADBUtility:
 				self.log(f"Failed to create dummy image: {str(e2)}")
 				return False
 	
+	def get_screenshot_data(self):
+		"""Take a screenshot and return the image data.
+		
+		Returns:
+			bytes: PNG image data or None if failed
+		"""
+		self.log("Capturing screenshot to memory...")
+		
+		if not self.selected_device:
+			self.log("Error: No device selected for screenshot.")
+			return None
+		
+		try:
+			# Use exec-out to get screenshot data directly
+			process = subprocess.Popen(
+				["adb", "-s", self.selected_device, "exec-out", "screencap", "-p"],
+				stdout=subprocess.PIPE,
+				stderr=subprocess.PIPE,
+				**self.subprocess_flags
+			)
+			screenshot_data, stderr = process.communicate(timeout=10)
+			
+			if process.returncode != 0:
+				self.log(f"Screenshot failed: {stderr.decode() if stderr else 'Unknown error'}")
+				return None
+			
+			# Validate it's a valid PNG
+			if screenshot_data.startswith(b'\x89PNG'):
+				self.log("Screenshot captured successfully")
+				return screenshot_data
+			else:
+				self.log("Invalid screenshot data received")
+				return None
+				
+		except subprocess.TimeoutExpired:
+			self.log("Screenshot timeout")
+			process.kill()
+			return None
+		except Exception as e:
+			self.log(f"Error capturing screenshot: {str(e)}")
+			return None
+	
 	def tap_screen(self, x, y):
 		"""Tap the screen at the specified coordinates.
 		

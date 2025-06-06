@@ -29,6 +29,7 @@ class ConfigManager:
 			'default_pattern': 'Kitty Mode',
 			'default_interval': 60,
 			'default_intensity': 0.5,
+			'default_time_unit_ms': 1000,  # 1 second
 		}
 		
 		# Load saved settings if available

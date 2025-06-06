@@ -10,16 +10,26 @@ A cat-friendly application that automates interactions with the PetCube app usin
 - Finds and displays all connected devices (prioritizes local over network)
 - Dynamically verifies and uses the correct PetCube package name
 - Launches the PetCube app
-- Displays device screenshots with safety zone overlay
+- Real-time screenshot display without saving files to disk
+- Capture new screenshots on demand
 
-### Cat Detection (New!)
+### Time-Based Pattern System (New!)
+- **Time Unit Configuration**: Define pattern timing in milliseconds
+- **Structured Pattern Commands**: Patterns now use simple commands:
+  - Move to position (relative or absolute coordinates)
+  - Wait for specified time units
+  - Tap (move without wait)
+- **Flexible Timing**: Adjust pattern speed by changing the time unit duration
+- **Modular Patterns**: Each pattern is in its own file for easy customization
+
+### Cat Detection
 - **Computer Vision Integration**: Uses OpenCV to detect your cat in real-time
 - **Position Tracking**: Monitors your cat's position and movement patterns
 - **Visual Feedback**: Visualizes detection with bounding boxes in the UI
 - **Customizable Detection**: Adjust sensitivity and other detection parameters
 - **Fallback Patterns**: Automatically reverts to standard patterns when cat is not visible
 
-### Cat-Responsive Patterns (New!)
+### Cat-Responsive Patterns
 - **Cat Following**: The laser moves just ahead of your cat's predicted path
   - Analyzes movement direction and leads with the right distance
   - Adjusts based on how quickly your cat is moving
@@ -42,22 +52,25 @@ A cat-friendly application that automates interactions with the PetCube app usin
 
 ### Safety Features
 - **Customizable Safe Zone**: Restrict laser to any portion of the screen
-        - Adjustable boundaries using percentage values or by dragging a rectangle on the screenshot
-        - Horizontal range: Customizable left and right boundaries
-        - Vertical range: Customizable top and bottom boundaries
-        - Visual overlay showing safe/restricted areas
+  - Adjustable boundaries using percentage values or by dragging a rectangle on the screenshot
+  - Horizontal range: Customizable left and right boundaries
+  - Vertical range: Customizable top and bottom boundaries
+  - Visual overlay showing safe/restricted areas
 - **Continuous Movement**: Prevents laser from staying in one spot
-	- Safety timer ensures movement at least every second
-	- Prevents accidental eye contact with laser
+  - Safety timer ensures movement at least every second
+  - Prevents accidental eye contact with laser
 
 ### Control Options
+- **Time Unit (ms)**: Control the base duration for pattern movements
+  - Default: 1000ms (1 second)
+  - Minimum: 100ms for very fast patterns
+  - Affects all pattern timings proportionally
 - **Intensity Slider**: Adjust pattern speed and complexity
-	- Higher intensity = faster movements, more frequent changes
-	- Lower intensity = slower, more gentle movements with longer sub-patterns
-	- Controls both speed of individual movements and frequency of changes within a pattern
+  - Higher intensity = faster movements, more frequent changes
+  - Lower intensity = slower, more gentle movements with longer sub-patterns
 - **Pattern Change Interval**: Control how often the pattern type changes (in seconds)
-- **Visual Feedback**: Monitor movements with screenshots and logs
-- **Settings Persistence**: Save your safe zone and pattern preferences for future sessions
+- **Visual Feedback**: Monitor movements with real-time screenshots and logs
+- **Settings Persistence**: Save your safe zone, time unit, and pattern preferences
 
 ## Prerequisites
 
@@ -98,14 +111,31 @@ python petcubehelper.py
 ### Customizing the Safe Zone
 
 1. **Adjust Percentages**: Set your desired boundaries using the percentage fields
-         - **Left %**: Left boundary (0% = left edge, 100% = right edge)
-         - **Right %**: Right boundary (must be greater than Left %)
-         - **Top %**: Top boundary (0% = top edge, 100% = bottom edge)
-         - **Bottom %**: Bottom boundary (must be greater than Top %)
+   - **Left %**: Left boundary (0% = left edge, 100% = right edge)
+   - **Right %**: Right boundary (must be greater than Left %)
+   - **Top %**: Top boundary (0% = top edge, 100% = bottom edge)
+   - **Bottom %**: Bottom boundary (must be greater than Top %)
 2. **Drag on Screenshot**: In the Screenshot tab, click and drag a rectangle to set the safe zone visually
 3. **Update Safe Zone**: Click "Update Safe Zone" to apply changes
 4. **Save Settings**: Click "Save Settings" to save for future sessions
 5. **View Results**: The screenshot will update to show your new safe zone
+
+### Using Screenshots
+
+The application now handles screenshots in memory without saving files:
+1. **Auto-capture**: A screenshot is automatically captured when you launch the app
+2. **Manual Capture**: Click "Capture Screenshot" in the Screenshot tab to take a new screenshot
+3. **Real-time Display**: Screenshots are displayed immediately with safe zone overlay
+4. **No File Clutter**: Screenshots are kept in memory, not saved to disk
+
+### Configuring Pattern Timing
+
+1. **Set Time Unit**: Enter the desired time unit duration in milliseconds
+   - 1000ms = 1 second (default)
+   - 500ms = patterns run at double speed
+   - 2000ms = patterns run at half speed
+2. **Pattern Commands**: All patterns use time units for their wait commands
+3. **Dynamic Adjustment**: Change time unit to speed up or slow down all patterns
 
 ### Using Cat Detection
 
@@ -114,10 +144,7 @@ python petcubehelper.py
 3. **Adjust Sensitivity**: Use the sensitivity slider to fine-tune detection
    - Higher sensitivity: Detects cats more easily but may have false positives
    - Lower sensitivity: More precise detection but may miss cats in difficult positions
-4. **Advanced Settings**: Access the "Settings" tab for more detection options:
-   - Detection interval: How frequently to analyze new frames
-   - Confidence threshold: Minimum confidence level for positive detection
-   - Model selection: Choose between different detection models
+4. **Advanced Settings**: Access the "Settings" tab for more detection options
 
 ### Running Patterns
 
@@ -125,23 +152,11 @@ python petcubehelper.py
    - Standard patterns: Kitty Mode, Laser Pointer, Random, Circular, Fixed Points
    - Cat-reactive patterns: Cat Following, Cat Teasing, Cat Enrichment (requires cat detection)
 2. **Set Pattern Change Interval**: Enter the time in seconds between pattern style changes
-3. **Adjust Intensity**: Use the slider to control speed and complexity
-4. **Enable Safe Zone**: Ensure the "Safe Zone" checkbox is selected (recommended)
-5. **Start Movement**: Click "Start Movement" to begin continuous laser movement
-6. **Stop Movement**: Click "Stop Movement" when finished
-
-## Continuous Movement System
-
-The application uses a continuous movement system to keep the laser in constant motion:
-
-- **No Pauses**: The laser is constantly moving to prevent it from staying in one spot
-- **Pattern Changes**: The system will automatically switch between patterns at the specified interval
-- **Primary Pattern**: Your selected pattern will be used most of the time (70%)
-- **Pattern Variety**: For extra engagement, other patterns will occasionally be used (30%)
-- **Seamless Transitions**: Transitions between patterns are smooth and maintain constant movement
-- **Status Updates**: The status bar shows which pattern is currently running and when it will change
-
-This approach ensures the laser is always moving, which is better for your cat's safety and engagement.
+3. **Configure Time Unit**: Set the base duration for pattern movements
+4. **Adjust Intensity**: Use the slider to control speed and complexity
+5. **Enable Safe Zone**: Ensure the "Safe Zone" checkbox is selected (recommended)
+6. **Start Movement**: Click "Start Movement" to begin continuous laser movement
+7. **Stop Movement**: Click "Stop Movement" when finished
 
 ## Application Architecture
 
@@ -154,12 +169,20 @@ PetCubeHelper/
 │   ├── __init__.py
 │   ├── adb_utils.py (ADB operations)
 │   ├── config.py (settings management)
-│   ├── patterns.py (pattern implementation)
+│   ├── patterns.py (pattern executor)
 │   ├── ui_components.py (UI creation and management)
 │   └── vision/
 │       ├── __init__.py
 │       ├── cat_detector.py (cat detection)
 │       └── cat_patterns.py (reactive patterns)
+├── patterns/
+│   ├── __init__.py
+│   ├── base_pattern.py (base class for all patterns)
+│   ├── circular_pattern.py
+│   ├── random_pattern.py
+│   ├── laser_pointer_pattern.py
+│   ├── fixed_points_pattern.py
+│   └── kitty_mode_pattern.py
 ├── models/ (detection models)
 ├── temp/ (temp files for detection)
 └── README.md
@@ -169,164 +192,111 @@ Each module has a specific responsibility:
 
 - **adb_utils.py**: Handles all ADB operations (device detection, app launch, screen taps)
 - **config.py**: Manages application settings (loading, saving, safe zone calculation)
-- **patterns.py**: Implements all touch patterns (random, circular, laser pointer, kitty mode)
+- **patterns.py**: Pattern executor that runs pattern files
+- **patterns/**: Individual pattern implementations
 - **ui_components.py**: Creates and manages the user interface
-- **vision/cat_detector.py**: Implements computer vision for cat detection
-- **vision/cat_patterns.py**: Implements cat-reactive patterns
-- **petcubehelper.py**: Main application that ties everything together
+- **vision/**: Computer vision components for cat detection
 
-## Cat Detection Details
+## Creating Custom Patterns
 
-The cat detection system uses computer vision to identify cats in the PetCube video feed:
+With the new pattern system, creating custom patterns is easy:
 
-- **OpenCV Integration**: Utilizes OpenCV's Haar Cascade classifier for lightweight detection
-- **Detection Frequency**: Adjustable detection interval (default: 0.5 seconds)
-- **Position History**: Tracks recent cat positions to analyze movement patterns
-- **Movement Vectors**: Calculates direction and speed of cat movement
-- **Debug Visualization**: Shows detection results with bounding boxes around detected cats
+1. Create a new file in the `patterns/` directory
+2. Inherit from `BasePattern` class
+3. Implement required methods:
+   - `get_name()`: Return the pattern name
+   - `get_description()`: Return a description
+   - `_setup_commands()`: Define the pattern using commands
 
-## Cat-Reactive Pattern Details
+Example custom pattern:
 
-### Cat Following
-Designed to engage your cat's hunting instincts by moving just ahead of them:
-- Analyzes cat movement direction and speed
-- Positions the laser slightly ahead in the cat's path
-- Varies speed and distance based on how your cat is moving
-- Creates natural "prey leading the predator" behavior
+```python
+from .base_pattern import BasePattern
 
-### Cat Teasing
-Simulates prey that runs away when approached:
-- Monitors the cat's approach to the laser position
-- Moves away when the cat gets too close
-- Maintains an optimal distance to keep your cat engaged
-- Creates a satisfying chase experience
+class MyCustomPattern(BasePattern):
+    def get_name(self):
+        return "My Custom Pattern"
+    
+    def get_description(self):
+        return "A custom pattern that does something special"
+    
+    def _setup_commands(self):
+        # Move to center
+        self.move_to(0.5, 0.5, relative=True)
+        self.wait(1)  # Wait 1 time unit
+        
+        # Move to corner
+        self.move_to(0.2, 0.2, relative=True)
+        self.wait(0.5)  # Wait half a time unit
+        
+        # Quick tap at another position
+        self.tap(0.8, 0.8, relative=True)
+```
 
-### Cat Enrichment
-Creates varied movements around your cat:
-- Generates patterns at a comfortable distance from your cat
-- Avoids directly targeting your cat
-- Creates unpredictable movements to maintain interest
-- Periodically pauses to encourage pouncing behavior
+4. Add your pattern to `patterns/__init__.py`:
+```python
+from .my_custom_pattern import MyCustomPattern
 
-## Pattern Details
+PATTERN_CLASSES = {
+    # ... existing patterns ...
+    "My Custom Pattern": MyCustomPattern,
+}
+```
 
-### Kitty Mode (Recommended)
-Alternates between different prey movement patterns to keep your cat engaged and trigger natural hunting instincts:
+## Pattern Command Reference
 
-- **Prey Movement**: Small, erratic movements like a mouse or bug
-- **Stalking Prey**: Slow movement followed by quick darts
-- **Hiding Prey**: Stop-and-go pattern with strategic pauses (but never longer than 1 second)
-- **Fleeing Prey**: Quick directional movements in a consistent direction
+### move_to(x, y, relative=False)
+Move the laser to a specific position.
+- `x, y`: Coordinates (0.0-1.0 if relative, pixels if absolute)
+- `relative`: If True, coordinates are relative to safe zone
 
-### Laser Pointer
-Simulates a human-controlled laser pointer with:
-- Occasional quick darts across the screen
-- Natural, fluid movements with varied speed
-- Brief pauses followed by movement (never static for more than 1 second)
+### wait(units)
+Wait for a specified number of time units.
+- `units`: Number of time units to wait (can be fractional)
 
-### Other Patterns
-- **Random**: Unpredictable movements across the safe zone
-- **Circular**: Circular movement pattern around the center of the safe zone
-- **Fixed Points**: Moves between predefined points in the safe zone
-
-## Understanding the Safe Zone
-
-The application creates a customizable "safe zone" to avoid shining the laser in your cat's eyes:
-
-- **Percentage-Based**: All boundaries are set as percentages of the screen dimensions
-- **Visual Feedback**: The screenshot tab shows:
-	- Green border around the safe zone
-	- Red overlay on restricted areas
-	- Text labels clearly marking "SAFE ZONE" and "EXCLUDED AREA"
-- **Orientation**: 
-	- 0% is the top/left edge of the screen
-	- 100% is the bottom/right edge of the screen
-
-For cat-friendly operation, it's usually best to:
-- Keep the laser in the lower portion of the screen (set Top % to 50-60)
-- Avoid extreme edges where the laser might not be visible
-- Adjust based on your specific PetCube camera setup and room layout
+### tap(x, y, relative=False)
+Same as move_to but named for clarity (instant move without wait).
 
 ## Settings Persistence
 
-Your safe zone settings, pattern preferences, and detection settings are automatically saved to `petcube_settings.json` when you click the "Save Settings" button. These settings will be loaded the next time you start the application.
+Your settings are automatically saved to `petcube_settings.json` when you click "Save Settings":
+- Safe zone boundaries
+- Default pattern selection
+- Pattern change interval
+- Movement intensity
+- Time unit duration
+- Cat detection preferences
 
 ## Troubleshooting
 
 ### General Issues
 - **ADB Not Found**: Ensure Android SDK Platform Tools is installed and in your system PATH
 - **No Devices Found**: Check that USB debugging is enabled on your device
-- **App Launch Failures**: 
-	- The package name detection should help identify the correct package
-	- Check if the app is installed on the device
-- **Pattern Issues**:
-	- If movements seem off-screen, try adjusting your safe zone settings
-	- Adjust the intensity slider to fine-tune the pattern speed
-- **Safe Zone Updates**: 
-	- Make sure your percentage values are valid (Left < Right, Top < Bottom)
-	- All percentages must be between 0 and 100
+- **App Launch Failures**: The package name detection should help identify the correct package
+- **Pattern Issues**: If movements seem off-screen, try adjusting your safe zone settings
+
+### Screenshot Issues
+- **Black Screenshot**: Make sure the PetCube app is in the foreground
+- **No Screenshot**: Check ADB connection and device permissions
+- **Capture Button Not Working**: Ensure a device is connected and app is launched
 
 ### Cat Detection Issues
-- **Detection Not Working**: 
-  - Make sure OpenCV is properly installed (`pip install opencv-python`)
-  - Check that the "Cat Detection" checkbox is enabled
-  - Try increasing the detection sensitivity
-  - Make sure your cat is visible in the camera frame
-- **False Detections**:
-  - Decrease the detection sensitivity
-  - Increase the confidence threshold in Settings
-  - Ensure good lighting in the room for better detection
-- **Slow Performance**:
-  - Increase the detection interval for better performance
-  - Close other applications to free up system resources
-  - If using a custom model, try switching to the default model
+- **Detection Not Working**: Make sure OpenCV is properly installed
+- **False Detections**: Decrease the detection sensitivity
+- **Slow Performance**: Increase the detection interval for better performance
 
-## Future Improvements
-
-The cat detection system is in active development. Here are areas we're planning to improve:
-
-- **Advanced Models**: Integration with more accurate detection models (YOLO, SSD)
-- **Motion Prediction**: Better prediction of cat movement trajectories
-- **Cat Behavior Analysis**: Recognition of different cat behaviors (playing, stalking, resting)
-- **Multiple Cat Support**: Detection and tracking of multiple cats simultaneously
-- **Customizable Behaviors**: More options to fine-tune how the patterns react to your cat
-
-## For Developers
-
-### Modifying the Application
-
-The modular architecture makes it easy to modify specific aspects of the application:
-
-- **Adding New Patterns**: Add methods to the `PatternExecutor` class in `patterns.py`
-- **Improving Cat Detection**: Enhance the `CatDetector` class in `vision/cat_detector.py`
-- **Adding Reactive Patterns**: Extend the `CatReactivePatterns` class in `vision/cat_patterns.py`
-- **Customizing the UI**: Modify the `PetCubeHelperUI` class in `ui_components.py`
-- **Adding New Settings**: Extend the `ConfigManager` class in `config.py`
-- **Improving ADB Interaction**: Enhance the `ADBUtility` class in `adb_utils.py`
-
-### Extending Functionality
-
-To add new features, you might want to:
-
-1. Add a new module in the `modules/` directory
-2. Import it in `petcubehelper.py`
-3. Integrate it with the existing components
-
-### Using Different Detection Models
-
-The current implementation uses OpenCV's Haar Cascade classifier for cat detection. To use a different model:
-
-1. Place your model files in the `models/` directory
-2. Select "Custom" in the model dropdown in the Settings tab
-3. Browse to your model file location
-
-For custom models, you may need to modify the `cat_detector.py` file to support different model formats.
-
-### Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit pull requests or open issues to improve the application.
 
-### Creating a Binary
+### Areas for Contribution
+- New pattern implementations
+- Improved cat detection models
+- UI enhancements
+- Performance optimizations
+- Additional safety features
+
+## Creating a Binary
 
 To create a standalone executable:
 
@@ -335,16 +305,6 @@ pip install pyinstaller
 pyinstaller --onefile --windowed petcubehelper.py
 ```
 
-## Testing and Known Issues
+## License
 
-### Testing Needed
-- **Cat Detection Accuracy**: Test with different cats, lighting conditions, and backgrounds
-- **Reactive Pattern Behavior**: Test how well the patterns respond to real cat movements
-- **Performance**: Test on different hardware configurations to ensure smooth operation
-- **User Interface**: Test the new UI elements for clarity and ease of use
-
-### Known Issues
-- Current detection uses a basic model that may not work optimally in all lighting conditions
-- Detection may be slower on systems with limited processing power
-- Reactive patterns still need fine-tuning based on real-world usage with cats
-- The application requires a clear view of the cat in the PetCube camera feed
+This project is provided as-is for personal use with PetCube devices. Please use responsibly and ensure your cat's safety at all times.

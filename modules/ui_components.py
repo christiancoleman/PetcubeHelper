@@ -208,26 +208,32 @@ class PetCubeHelperUI:
                 interval_entry = ttk.Entry(pattern_frame, textvariable=self.interval_var, width=5)
                 interval_entry.grid(row=0, column=3, padx=5, pady=5)
                 
+                # Time Unit Setting
+                ttk.Label(pattern_frame, text="Time Unit (ms):").grid(row=1, column=0, padx=5, pady=5)
+                self.time_unit_var = tk.StringVar(value="1000")
+                time_unit_entry = ttk.Entry(pattern_frame, textvariable=self.time_unit_var, width=8)
+                time_unit_entry.grid(row=1, column=1, padx=5, pady=5)
+                
                 # Pattern Intensity Slider
-                ttk.Label(pattern_frame, text="Intensity:").grid(row=1, column=0, padx=5, pady=5)
+                ttk.Label(pattern_frame, text="Intensity:").grid(row=2, column=0, padx=5, pady=5)
                 self.intensity_var = tk.DoubleVar(value=0.5)  # 0.0 to 1.0
                 intensity_slider = ttk.Scale(pattern_frame, from_=0.1, to=1.0, orient="horizontal",
                                                                         variable=self.intensity_var, length=200)
-                intensity_slider.grid(row=1, column=1, columnspan=3, padx=5, pady=5)
+                intensity_slider.grid(row=2, column=1, columnspan=3, padx=5, pady=5)
                 
                 # Safe Zone Controls
-                ttk.Label(pattern_frame, text="Safe Zone:").grid(row=1, column=4, padx=5, pady=5)
+                ttk.Label(pattern_frame, text="Safe Zone:").grid(row=2, column=4, padx=5, pady=5)
                 self.safe_zone_var = tk.BooleanVar(value=True)
                 safe_zone_check = ttk.Checkbutton(pattern_frame, text="Enabled", variable=self.safe_zone_var)
-                safe_zone_check.grid(row=1, column=5, padx=5, pady=5)
+                safe_zone_check.grid(row=2, column=5, padx=5, pady=5)
                 
                 # Cat Detection Controls
-                ttk.Label(pattern_frame, text="Cat Detection:").grid(row=2, column=0, padx=5, pady=5)
+                ttk.Label(pattern_frame, text="Cat Detection:").grid(row=3, column=0, padx=5, pady=5)
                 self.cat_detection_var = tk.BooleanVar(value=False)
                 cat_detection_check = ttk.Checkbutton(pattern_frame, text="Enabled", 
                                                                                           variable=self.cat_detection_var,
                                                                                           command=self.callbacks.toggle_cat_detection)
-                cat_detection_check.grid(row=2, column=1, padx=5, pady=5)
+                cat_detection_check.grid(row=3, column=1, padx=5, pady=5)
                 
                 # Start and Stop buttons
                 self.start_pattern_button = ttk.Button(pattern_frame, text="Start Movement", 
@@ -241,9 +247,9 @@ class PetCubeHelperUI:
                 self.stop_pattern_button.grid(row=0, column=5, padx=5, pady=5)
                 
                 # Add help text about the patterns
-                help_text = "The laser will move continuously. Cat-reactive patterns require cat detection to be enabled."
+                help_text = "Time unit defines the base duration for pattern movements. Cat-reactive patterns require cat detection."
                 ttk.Label(pattern_frame, text=help_text, 
-                                 font=("", 8, "italic")).grid(row=3, column=0, columnspan=6, padx=5, pady=2)
+                                 font=("", 8, "italic")).grid(row=4, column=0, columnspan=6, padx=5, pady=2)
         
         def create_notebook(self, parent):
                 """Create the notebook with tabs.
@@ -265,6 +271,15 @@ class PetCubeHelperUI:
                 # Screenshot tab
                 screenshot_frame = ttk.Frame(notebook, padding="5")
                 notebook.add(screenshot_frame, text="Screenshot")
+                
+                # Screenshot controls
+                screenshot_controls = ttk.Frame(screenshot_frame)
+                screenshot_controls.pack(fill=tk.X, padx=5, pady=5)
+                
+                self.capture_screenshot_button = ttk.Button(screenshot_controls, 
+                                                                                                   text="Capture Screenshot",
+                                                                                                   command=self.callbacks.capture_screenshot)
+                self.capture_screenshot_button.pack(side=tk.LEFT, padx=5)
                 
                 # Canvas for displaying screenshot
                 self.screenshot_canvas = tk.Canvas(screenshot_frame, bg="black")
@@ -563,6 +578,129 @@ class PetCubeHelperUI:
                         self.log(f"Error displaying screenshot: {str(e)}")
                         return False
         
+        def update_screenshot_from_data(self, image_data, screen_width, screen_height, safe_zone):
+                """Update the screenshot canvas with image data from memory.
+                
+                Args:
+                        image_data: PNG image data as bytes
+                        screen_width: The screen width in pixels
+                        screen_height: The screen height in pixels
+                        safe_zone: Dictionary with min_x, max_x, min_y, max_y keys
+                        
+                Returns:
+                        bool: True if screenshot was updated successfully
+                """
+                if not image_data:
+                        self.log("No screenshot data provided")
+                        return False
+                
+                self.screen_width = screen_width
+                self.screen_height = screen_height
+                self.safe_zone = safe_zone
+                
+                try:
+                        # Clear any existing items
+                        self.screenshot_canvas.delete("all")
+                        
+                        # Open the image from memory
+                        import io
+                        img = Image.open(io.BytesIO(image_data))
+                        
+                        # Draw safe zone overlay on a copy of the image
+                        img_with_overlay = img.copy()
+                        draw = ImageDraw.Draw(img_with_overlay, 'RGBA')  # Ensure RGBA mode for transparency
+                        
+                        # Calculate safe zone coordinates for this image
+                        img_width, img_height = img.size
+                        zone_min_x = int(img_width * self.safe_zone['min_x'] / self.screen_width)
+                        zone_max_x = int(img_width * self.safe_zone['max_x'] / self.screen_width)
+                        zone_min_y = int(img_height * self.safe_zone['min_y'] / self.screen_height)
+                        zone_max_y = int(img_height * self.safe_zone['max_y'] / self.screen_height)
+                        
+                        # Draw semi-transparent red overlay on excluded areas (more opaque now)
+                        excluded_zones = [
+                                # Top zone (0 to zone_min_y)
+                                [(0, 0), (img_width, zone_min_y)],
+                                # Bottom zone (zone_max_y to img_height)
+                                [(0, zone_max_y), (img_width, img_height)],
+                                # Left zone (0 to zone_min_x)
+                                [(0, zone_min_y), (zone_min_x, zone_max_y)],
+                                # Right zone (zone_max_x to img_width)
+                                [(zone_max_x, zone_min_y), (img_width, zone_max_y)]
+                        ]
+                        
+                        # More visible overlay color (higher opacity)
+                        overlay_color = (255, 0, 0, 128)  # Semi-transparent red, more opaque
+                        for zone in excluded_zones:
+                                draw.rectangle(zone, fill=overlay_color)
+                        
+                        # Draw a bold green border around the safe zone
+                        border_width = 5  # Thicker border
+                        
+                        # Draw multiple rectangles for a more visible border
+                        for i in range(border_width):
+                                draw.rectangle(
+                                        [(zone_min_x + i, zone_min_y + i), (zone_max_x - i, zone_max_y - i)],
+                                        outline=(0, 255, 0),  # Bright green
+                                        width=1
+                                )
+                        
+                        # Add text labels for clarity
+                        font_size = max(12, min(img_width, img_height) // 40)  # Scale font size to image
+                        
+                        # Draw "SAFE ZONE" text at the top of the safe zone
+                        text_color = (0, 255, 0)  # Bright green
+                        draw.text(
+                                (zone_min_x + 10, zone_min_y + 10),
+                                "SAFE ZONE",
+                                fill=text_color,
+                                stroke_width=2,
+                                stroke_fill=(0, 0, 0)  # Black outline for visibility
+                        )
+                        
+                        # Draw "EXCLUDED" on each excluded zone
+                        draw.text((10, 10), "EXCLUDED AREA", fill=(255, 0, 0), stroke_width=2, stroke_fill=(0, 0, 0))
+                        draw.text((10, zone_max_y + 10), "EXCLUDED AREA", fill=(255, 0, 0), stroke_width=2, stroke_fill=(0, 0, 0))
+                        draw.text((10, zone_min_y + 10), "EXCLUDED", fill=(255, 0, 0), stroke_width=2, stroke_fill=(0, 0, 0))
+                        draw.text((zone_max_x + 10, zone_min_y + 10), "EXCLUDED", fill=(255, 0, 0), stroke_width=2, stroke_fill=(0, 0, 0))
+                        
+                        # Resize to fit canvas while maintaining aspect ratio
+                        canvas_width = self.screenshot_canvas.winfo_width()
+                        canvas_height = self.screenshot_canvas.winfo_height()
+                        
+                        # Avoid division by zero
+                        if canvas_width <= 1 or canvas_height <= 1:
+                                canvas_width = 600
+                                canvas_height = 400
+                        
+                        ratio = min(canvas_width/img_width, canvas_height/img_height)
+                        new_width = int(img_width * ratio)
+                        new_height = int(img_height * ratio)
+                        
+                        img_with_overlay = img_with_overlay.resize((new_width, new_height), Image.LANCZOS)
+                        
+                        # Convert to Tkinter PhotoImage
+                        self.photo = ImageTk.PhotoImage(img_with_overlay)
+                        
+                        # Calculate position to center the image
+                        x = (canvas_width - new_width) // 2
+                        y = (canvas_height - new_height) // 2
+                        self.display_width = new_width
+                        self.display_height = new_height
+                        self.display_offset_x = x
+                        self.display_offset_y = y
+                        self.original_width = img_width
+                        self.original_height = img_height
+                        
+                        # Add image to canvas
+                        self.screenshot_canvas.create_image(x, y, anchor=tk.NW, image=self.photo)
+                        
+                        self.log("Updated screenshot from memory with enhanced safe zone overlay")
+                        return True
+                except Exception as e:
+                        self.log(f"Error displaying screenshot: {str(e)}")
+                        return False
+        
         def update_detection_image(self, filename):
                 """Update the cat detection canvas with the given image file.
                 
@@ -633,12 +771,22 @@ class PetCubeHelperUI:
                         interval = 60
                         self.interval_var.set("60")
                 
+                try:
+                        time_unit = int(self.time_unit_var.get())
+                        if time_unit < 100:  # Minimum 100ms
+                                time_unit = 1000
+                                self.time_unit_var.set("1000")
+                except ValueError:
+                        time_unit = 1000
+                        self.time_unit_var.set("1000")
+                
                 return {
                         'pattern': self.pattern_var.get(),
                         'interval': interval,
                         'intensity': self.intensity_var.get(),
                         'safe_zone_enabled': self.safe_zone_var.get(),
                         'cat_detection_enabled': self.cat_detection_var.get(),
+                        'time_unit_ms': time_unit,
                 }
         
         def get_vision_settings(self):

@@ -96,6 +96,10 @@ class PetCubeHelper:
 		if 'default_intensity' in self.config_manager.settings:
 			self.ui.intensity_var.set(self.config_manager.settings['default_intensity'])
 		
+		# Set default time unit
+		if 'default_time_unit_ms' in self.config_manager.settings:
+			self.ui.time_unit_var.set(str(self.config_manager.settings['default_time_unit_ms']))
+		
 		# Cat detection settings
 		if 'cat_detection_enabled' in self.config_manager.settings:
 			self.ui.cat_detection_var.set(self.config_manager.settings['cat_detection_enabled'])
@@ -191,9 +195,10 @@ class PetCubeHelper:
 				# Update pattern executor with safe zone
 				self.pattern_executor.set_safe_zone(safe_zone)
 				
-				# Take a screenshot
-				if self.adb_utility.get_screenshot("app_home.png"):
-					self.ui.update_screenshot("app_home.png", self.screen_width, self.screen_height, safe_zone)
+				# Take a screenshot and display it
+				screenshot_data = self.adb_utility.get_screenshot_data()
+				if screenshot_data:
+					self.ui.update_screenshot_from_data(screenshot_data, self.screen_width, self.screen_height, safe_zone)
 					
 					# Enable pattern controls
 					self.ui.enable_pattern_buttons(True, False)
@@ -400,6 +405,7 @@ class PetCubeHelper:
 		self.config_manager.settings['default_interval'] = pattern_settings['interval']
 		self.config_manager.settings['default_intensity'] = pattern_settings['intensity']
 		self.config_manager.settings['cat_detection_enabled'] = pattern_settings['cat_detection_enabled']
+		self.config_manager.settings['default_time_unit_ms'] = pattern_settings['time_unit_ms']
 		
 		# Vision and pattern settings are saved when applied
 		
@@ -408,6 +414,20 @@ class PetCubeHelper:
 			self.ui.set_status("Settings saved successfully.")
 		else:
 			self.ui.set_status("Failed to save settings.")
+	
+	def capture_screenshot(self):
+		"""Capture a new screenshot and update the display."""
+		self.ui.set_status("Capturing screenshot...")
+		
+		screenshot_data = self.adb_utility.get_screenshot_data()
+		if screenshot_data and hasattr(self, 'screen_width') and hasattr(self, 'screen_height'):
+			safe_zone = self.config_manager.calculate_safe_zone_pixels(
+				self.screen_width, self.screen_height
+			)
+			self.ui.update_screenshot_from_data(screenshot_data, self.screen_width, self.screen_height, safe_zone)
+			self.ui.set_status("Screenshot captured.")
+		else:
+			self.ui.set_status("Failed to capture screenshot.")
 	
 	def start_pattern(self):
 		"""Start the selected pattern in a thread"""
@@ -426,6 +446,9 @@ class PetCubeHelper:
 		
 		# Set safe zone enforcement
 		self.pattern_executor.enable_safe_zone(pattern_settings['safe_zone_enabled'])
+		
+		# Set time unit
+		self.pattern_executor.set_time_unit(pattern_settings['time_unit_ms'])
 		
 		# Reset the stop event
 		self.stop_event.clear()
@@ -517,21 +540,6 @@ class PetCubeHelper:
 				time.sleep(0.1)
 			
 			running_time += 1
-			
-			# Periodically take screenshots to show activity (every 30 seconds)
-			if running_time % 30 == 0 and not self.stop_event.is_set():
-				ss_filename = f"movement_{running_time}s.png"
-				self.adb_utility.get_screenshot(ss_filename)
-				
-				if hasattr(self, 'screen_width') and hasattr(self, 'screen_height'):
-					safe_zone = self.config_manager.calculate_safe_zone_pixels(
-						self.screen_width, self.screen_height
-					)
-					self.ui.update_screenshot(ss_filename, self.screen_width, self.screen_height, safe_zone)
-					
-					# Also update detection visualization if active
-					if self.cat_detector and self.ui.cat_detection_var.get():
-						self.update_detection_visualization()
 	
 	def stop_pattern(self):
 		"""Stop the running pattern"""
@@ -616,6 +624,10 @@ class UICallbacks:
 	def stop_pattern(self):
 		"""Stop pattern button callback"""
 		self.app.stop_pattern()
+	
+	def capture_screenshot(self):
+		"""Capture screenshot button callback"""
+		threading.Thread(target=self.app.capture_screenshot, daemon=True).start()
 
 
 def main():
